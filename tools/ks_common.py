@@ -34,10 +34,13 @@ ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 
 
 def setup_stdio() -> None:
-    """Never crash on unencodable characters when printing to a GBK console."""
+    """UTF-8 when piped (tools/agents read UTF-8); never crash on unencodable characters."""
     for stream in (sys.stdout, sys.stderr):
         try:
-            stream.reconfigure(errors="replace")
+            if stream.isatty():
+                stream.reconfigure(errors="replace")
+            else:
+                stream.reconfigure(encoding="utf-8", errors="replace")
         except (AttributeError, ValueError):
             pass
 
