@@ -99,7 +99,13 @@ template = "plains"        # vanilla biome copied for features / spawns until M3
 temperature = 0.8
 downfall = 0.8
 carvers = false          # no carver caves in towers (karst caves are a later feature, SPEC §7)
-remove_features = ["minecraft:monster_room", "minecraft:lake_lava_surface", "minecraft:lake_lava_underground"]  # they hollow out towers
+remove_features = [
+  "minecraft:monster_room", "minecraft:lake_lava_surface", "minecraft:lake_lava_underground",  # hollow out towers
+  # decorative stone/dirt blobs: they cut through the limestone bands as brown/grey patches on tower walls
+  "minecraft:ore_dirt", "minecraft:ore_gravel", "minecraft:ore_granite_upper", "minecraft:ore_granite_lower",
+  "minecraft:ore_diorite_upper", "minecraft:ore_diorite_lower", "minecraft:ore_andesite_upper",
+  "minecraft:ore_andesite_lower", "minecraft:ore_tuff",
+]
 # light white-blue haze so distant towers separate into layers (environment attributes, 1.21.11+)
 fog_color = "#d3e1ee"
 sky_color = "#8fb5e6"
