@@ -457,6 +457,7 @@ public final class TerrainExport {
 		slopes.addProperty("land_fraction_ge_70deg", ratio(steep, land));
 		o.add("slope", slopes);
 
+		o.add("towers", towers(g));
 		o.add("karst_regions", regions(g, i -> g.biome()[i] == karst));
 		o.add("karst_cores_mask_1", regions(g, i -> g.mask()[i] >= 0.999f));
 		o.add("edge_transition", edgeTransition(g));
@@ -479,6 +480,111 @@ public final class TerrainExport {
 			if (g.mask()[i] > 0f && g.biome()[i] != karst && g.land(i)) c++;
 		}
 		return c;
+	}
+
+	/** Surface at or above this y inside the karst core counts as tower (the plain tops out around y80-90). */
+	private static final int TOWER_MIN_Y = 92;
+
+	/**
+	 * Tower statistics in the karst core (mask = 1, land): towers are 4-connected groups of samples with
+	 * surface >= TOWER_MIN_Y. Height is relative to the median plain surface of the core. Most precise at
+	 * step 1-2 (diameters/spacing are in blocks either way, but small towers vanish at coarse steps).
+	 */
+	private static JsonObject towers(Grid g) {
+		int n = g.n();
+		int size = n * n;
+		boolean[] core = new boolean[size];
+		boolean[] tower = new boolean[size];
+		List<Integer> plainH = new ArrayList<>();
+		int coreLand = 0, towerSamples = 0;
+		for (int i = 0; i < size; i++) {
+			core[i] = g.land(i) && g.mask()[i] >= 0.999f;
+			if (!core[i]) continue;
+			coreLand++;
+			if (g.surface()[i] >= TOWER_MIN_Y) {
+				tower[i] = true;
+				towerSamples++;
+			} else {
+				plainH.add(g.surface()[i]);
+			}
+		}
+		JsonObject o = new JsonObject();
+		o.addProperty("definition", "karst core (mask=1, land); tower = connected samples with surface >= y" + TOWER_MIN_Y);
+		o.addProperty("core_land_samples", coreLand);
+		if (coreLand == 0) return o;
+		int plainMedian = plainH.isEmpty() ? 70 : plainH.stream().mapToInt(Integer::intValue).sorted().toArray()[plainH.size() / 2];
+		o.addProperty("plain_median_y", plainMedian);
+		o.addProperty("plain_fraction_of_core", ratio(coreLand - towerSamples, coreLand));
+
+		int[] label = new int[size];
+		int[] stack = new int[size];
+		List<int[]> comps = new ArrayList<>(); // cells, maxY, sumX, sumZ, wallCells, steepWallCells, touchesEdge
+		for (int start = 0; start < size; start++) {
+			if (!tower[start] || label[start] != 0) continue;
+			int id = comps.size() + 1;
+			int cells = 0, maxY = Integer.MIN_VALUE, wall = 0, steep = 0, edge = 0;
+			long sx = 0, sz = 0;
+			int top = 0;
+			stack[top++] = start;
+			label[start] = id;
+			while (top > 0) {
+				int i = stack[--top];
+				int x = i % n, z = i / n;
+				cells++;
+				sx += x;
+				sz += z;
+				maxY = Math.max(maxY, g.surface()[i]);
+				if (x == 0 || z == 0 || x == n - 1 || z == n - 1) edge = 1;
+				boolean isWall = false;
+				int[] nb = {x > 0 ? i - 1 : -1, x + 1 < n ? i + 1 : -1, z > 0 ? i - n : -1, z + 1 < n ? i + n : -1};
+				for (int j : nb) {
+					if (j < 0) continue;
+					if (!tower[j]) isWall = true;
+					if (tower[j] && label[j] == 0) {
+						label[j] = id;
+						stack[top++] = j;
+					}
+				}
+				if (isWall) {
+					wall++;
+					if (g.slope()[i] >= SLOPE_STEEP_DEG) steep++;
+				}
+			}
+			comps.add(new int[]{cells, maxY, (int) (sx / cells), (int) (sz / cells), wall, steep, edge});
+		}
+		// only towers fully inside the export window
+		List<int[]> full = comps.stream().filter(c -> c[6] == 0).toList();
+		o.addProperty("count", full.size());
+		o.addProperty("count_cut_by_window_edge", comps.size() - full.size());
+		double areaPerCell = (double) g.step() * g.step();
+		o.addProperty("per_km2_of_core", Math.round(full.size() / (coreLand * areaPerCell / 1e6) * 10) / 10.0);
+		if (full.isEmpty()) return o;
+		List<Integer> rel = new ArrayList<>(), diam = new ArrayList<>(), tops = new ArrayList<>(), spacing = new ArrayList<>();
+		long wall = 0, steep = 0;
+		for (int[] c : full) {
+			rel.add(c[1] - plainMedian);
+			tops.add(c[1]);
+			diam.add((int) Math.round(2 * Math.sqrt(c[0] * areaPerCell / Math.PI)));
+			wall += c[4];
+			steep += c[5];
+		}
+		for (int a = 0; a < full.size(); a++) {
+			double best = Double.MAX_VALUE;
+			for (int b = 0; b < full.size(); b++) {
+				if (a == b) continue;
+				double dx = (full.get(a)[2] - full.get(b)[2]) * (double) g.step();
+				double dz = (full.get(a)[3] - full.get(b)[3]) * (double) g.step();
+				best = Math.min(best, dx * dx + dz * dz);
+			}
+			if (best < Double.MAX_VALUE) spacing.add((int) Math.round(Math.sqrt(best)));
+		}
+		o.add("height_above_plain", percentiles(rel));
+		o.add("top_y", percentiles(tops));
+		o.add("diameter_at_y" + TOWER_MIN_Y, percentiles(diam));
+		o.add("nearest_neighbour_spacing", percentiles(spacing));
+		o.addProperty("wall_samples", wall);
+		o.addProperty("wall_fraction_ge_70deg", ratio(steep, wall));
+		return o;
 	}
 
 	/** 4-connected components of the grid cells matching `in`: count, area distribution, largest centroids. */

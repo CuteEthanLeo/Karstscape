@@ -85,3 +85,63 @@ collect = []
 send = "karstscape export 12288 0 0 64"
 expect = 'Karstscape export (done: \S*_r12288_s64\b|failed)'
 timeout = 900
+
+[towers]
+# karst_only world, block-exact export of one 1 km square: tower statistics (SPEC §3.2 targets)
+seed = "20260915"
+level_type = "karstscape:karst_only"
+level_name = "ks_towers"
+baseline = "vanilla"
+collect = ["karstscape_export/**/stats.json", "karstscape_export/check_*.json"]
+
+[[towers.commands]]
+send = "karstscape export 512 0 0 1"
+expect = 'Karstscape export (done: \S*_r512_s1\b|failed)'
+timeout = 900
+
+[[towers.commands]]
+send = "karstscape check 6 0 0"
+expect = 'Karstscape check (done|failed)'
+timeout = 900
+
+[[towers.commands]]
+send = "karstscape find"
+expect = 'Karstscape find'
+timeout = 300
+
+[bench_vanilla]
+seed = "20260915"
+level_type = "minecraft:normal"
+level_name = "ks_bench_vanilla"
+baseline = "vanilla"
+collect = []
+
+[[bench_vanilla.commands]]
+send = "karstscape bench 400 0 0"
+expect = 'Karstscape bench done'
+timeout = 1800
+
+[bench_karst_only]
+seed = "20260915"
+level_type = "karstscape:karst_only"
+level_name = "ks_bench_karst_only"
+baseline = "vanilla"
+collect = []
+
+[[bench_karst_only.commands]]
+send = "karstscape bench 400 0 0"
+expect = 'Karstscape bench done'
+timeout = 1800
+
+[find]
+# Karstscape preset: nearest karst core from spawn + aerial viewpoint (use with --seed)
+seed = "20260915"
+level_type = "karstscape:karstscape"
+level_name = "ks_find"
+baseline = "vanilla"
+collect = []
+
+[[find.commands]]
+send = "karstscape find"
+expect = 'Karstscape find'
+timeout = 600

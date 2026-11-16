@@ -33,6 +33,18 @@ public final class KarstCommands {
 	private static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 		dispatcher.register(Commands.literal("karstscape")
 				.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+				.then(Commands.literal("find")
+						.executes(ctx -> find(ctx.getSource())))
+				.then(Commands.literal("check")
+						.then(Commands.argument("chunkRadius", IntegerArgumentType.integer(1, 32))
+								.then(Commands.argument("x", IntegerArgumentType.integer())
+										.then(Commands.argument("z", IntegerArgumentType.integer())
+												.executes(KarstCommands::check)))))
+				.then(Commands.literal("bench")
+						.then(Commands.argument("chunks", IntegerArgumentType.integer(1, 10000))
+								.then(Commands.argument("x", IntegerArgumentType.integer())
+										.then(Commands.argument("z", IntegerArgumentType.integer())
+												.executes(KarstCommands::bench)))))
 				.then(Commands.literal("export")
 						.then(Commands.argument("radius", IntegerArgumentType.integer(16, 65536))
 								.executes(ctx -> export(ctx, false, false))
@@ -41,6 +53,50 @@ public final class KarstCommands {
 												.executes(ctx -> export(ctx, true, false))
 												.then(Commands.argument("step", IntegerArgumentType.integer(1, 4096))
 														.executes(ctx -> export(ctx, true, true))))))));
+	}
+
+	private static int find(CommandSourceStack source) {
+		String r = WorldChecks.find(source.getLevel(), (int) Math.floor(source.getPosition().x),
+				(int) Math.floor(source.getPosition().z), 8192);
+		if (r == null) {
+			source.sendFailure(Component.literal("Karstscape find: no karst core within 8192 blocks (or not a Karstscape world)"));
+			return 0;
+		}
+		source.sendSuccess(() -> Component.literal("Karstscape find: " + r), false);
+		return 1;
+	}
+
+	private static int check(CommandContext<CommandSourceStack> ctx) {
+		CommandSourceStack source = ctx.getSource();
+		ServerLevel level = source.getLevel();
+		int r = IntegerArgumentType.getInteger(ctx, "chunkRadius");
+		int x = IntegerArgumentType.getInteger(ctx, "x");
+		int z = IntegerArgumentType.getInteger(ctx, "z");
+		Path out = level.getServer().getServerDirectory().resolve("karstscape_export")
+				.resolve("check_seed%d_x%d_z%d_r%d.json".formatted(level.getSeed(), x, z, r));
+		try {
+			var o = WorldChecks.check(level, x, z, r, out);
+			source.sendSuccess(() -> Component.literal("Karstscape check done: %s seams %s overhangs %s real_vs_noise %s sha %s"
+					.formatted(out.getFileName(), o.get("seams"), o.get("overhangs"), o.get("real_vs_noise"),
+							o.get("terrain_tops_sha256").getAsString().substring(0, 16))), false);
+			return 1;
+		} catch (Exception e) {
+			Karstscape.LOGGER.error("Karstscape check failed", e);
+			source.sendFailure(Component.literal("Karstscape check failed: " + e));
+			return 0;
+		}
+	}
+
+	private static int bench(CommandContext<CommandSourceStack> ctx) {
+		CommandSourceStack source = ctx.getSource();
+		int n = IntegerArgumentType.getInteger(ctx, "chunks");
+		int x = IntegerArgumentType.getInteger(ctx, "x");
+		int z = IntegerArgumentType.getInteger(ctx, "z");
+		double ms = WorldChecks.bench(source.getLevel(), x, z, n);
+		String settings = WorldChecks.settingsId(source.getLevel().getChunkSource().getGenerator());
+		source.sendSuccess(() -> Component.literal("Karstscape bench done: settings=%s chunks=%d ms_per_chunk=%.3f"
+				.formatted(settings, n, ms)), false);
+		return 1;
 	}
 
 	private static int export(CommandContext<CommandSourceStack> ctx, boolean hasCenter, boolean hasStep) {
