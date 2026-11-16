@@ -1,0 +1,10 @@
+# WARN baseline for tools/headless_test.py (normalized: numbers -> #, paths -> <ROOT>/<HOME>).
+# Every line must be explained in the milestone report. Regenerate with --update-baseline.
+WARN (Minecraft) **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+WARN (Minecraft) Failed to get system info for Process Loads
+WARN (Minecraft) Failed to get system info for Process Resident Size (MiB)
+WARN (Minecraft) Failed to get system info for Process Virtual Size (MiB)
+WARN (Minecraft) The server will make no attempt to authenticate usernames. Beware.
+WARN (Minecraft) To change this, set "online-mode" to "true" in the server.properties file.
+WARN (Minecraft) While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+WARN (PerfCounterQuery) Unable to locate English counter names in registry Perflib #. Assuming English counters. Error <HEX>. See https://support.microsoft.com/en-us/help/#/how-to-manually-rebuild-performance-counter-library-values
