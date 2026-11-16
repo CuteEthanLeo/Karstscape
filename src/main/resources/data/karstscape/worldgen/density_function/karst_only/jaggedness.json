@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:cache",
+  "input": {
+    "type": "minecraft:lerp",
+    "alpha": "karstscape:karst_only/mask",
+    "first": "minecraft:overworld/jaggedness",
+    "second": 0.0
+  }
+}

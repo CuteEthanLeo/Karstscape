@@ -1,0 +1,54 @@
+# Karstscape — THE single source of region and terrain numbers (SPEC §3.1).
+#
+# Everything under src/main/resources/data/karstscape/worldgen (and the world-preset tag / lang files)
+# is GENERATED from this file plus the vanilla export by:
+#
+#     python tools/gen_worldgen.py           # regenerate
+#     python tools/gen_worldgen.py --check   # fail if generated files are stale (used by the self-test)
+#
+# Climate values are the vanilla noise-router outputs that also pick biomes
+# (temperature, humidity = router "vegetation", continentalness = "continents", erosion, weirdness = "ridges").
+# A box bound at -1.0 / 1.0 means "open on that side" (extended to the climate limit ±2, no edge ramp).
+
+# ---------------------------------------------------------------- regions --
+# The biome karstscape:tower_karst occupies exactly this box. The terrain mask is 1 inside the box minus
+# `edge` on each closed side and ramps linearly to 0 at the box boundary, so the karst terrain fades out
+# while still inside the karst biome (no towers in neighbouring biomes).
+
+[presets.karstscape]
+# normal Overworld with karst regions (target: 5–10 % of land)
+display_en = "Karstscape"
+display_zh = "喀斯特峰林"
+temperature = [-0.15, 0.55]      # temperate .. warm (not hot deserts, not cold)
+humidity = [0.1, 1.0]            # humid half
+continentalness = [0.03, 1.0]    # inland (vanilla coast ends at 0.03)
+erosion = [-0.2225, 1.0]         # medium .. high erosion = flatter vanilla terrain
+weirdness = [-1.0, 1.0]
+edge = 0.06                      # ramp width in climate units on every closed side
+
+[presets.karst_only]
+# debug / aerial preset: all land is karst
+display_en = "Karst Only (debug)"
+display_zh = "全峰林（调试）"
+temperature = [-1.0, 1.0]
+humidity = [-1.0, 1.0]
+continentalness = [-0.11, 1.0]   # everything that is not ocean
+erosion = [-1.0, 1.0]
+weirdness = [-1.0, 1.0]
+edge = 0.06
+
+# ------------------------------------------------------------------ plain --
+# Inside the mask the vanilla terrain is cut down to an inter-tower plain: hills above the plain are lowered,
+# valleys, rivers and lakes below it are kept (they become the M4 river valleys).
+[plain]
+cap_y = 74                 # plain top (block y) where the mask is 1
+cap_noise_blocks = 4       # ± gentle undulation of the plain top
+cap_noise = "minecraft:surface"
+cap_noise_xz_scale = 1.0
+min_factor = 6.0           # terrain "factor" floor inside the mask (higher = flatter, less 3D noise)
+
+# ------------------------------------------------------------------ biome --
+[biome]
+template = "plains"        # vanilla biome copied for features / spawns until M3
+temperature = 0.8
+downfall = 0.8

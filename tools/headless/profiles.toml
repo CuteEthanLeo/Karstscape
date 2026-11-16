@@ -27,3 +27,32 @@ timeout = 60
 send = "save-all flush"
 expect = 'Saved the game'
 timeout = 300
+
+[karstscape]
+seed = "20260915"
+level_type = "karstscape:karstscape"
+level_name = "ks_karstscape"
+baseline = "vanilla"
+collect = []
+
+[[karstscape.commands]]
+send = "seed"
+expect = 'Seed: \[20260915\]'
+timeout = 60
+
+[[karstscape.commands]]
+send = "locate biome karstscape:tower_karst"
+expect = 'The nearest karstscape:tower_karst is at|Could not find a biome'
+timeout = 300
+
+[karst_only]
+seed = "20260915"
+level_type = "karstscape:karst_only"
+level_name = "ks_karst_only"
+baseline = "vanilla"
+collect = []
+
+[[karst_only.commands]]
+send = "locate biome karstscape:tower_karst"
+expect = 'The nearest karstscape:tower_karst is at|Could not find a biome'
+timeout = 300
