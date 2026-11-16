@@ -5,8 +5,8 @@ Writes docs/vanilla-26.3-format-check.md. Exit code 1 if any claim is a mismatch
 
   python tools/verify_formats.py [--sources PATH]
 
---sources: a Minecraft 26.3 sources jar or directory (Loom genSources output). When given,
-claim C4 also quotes the ConstantFunction codec from source.
+--sources: a Minecraft 26.3 sources jar or directory (Loom genSources output). Defaults to the
+project's .gradle/loom-cache genSources jar if present; claim C4 then quotes the ConstantFunction codec.
 """
 from __future__ import annotations
 
@@ -231,7 +231,16 @@ def claim_c3():
     return ("C3", "含水层字段从 `noise_router` 挪进新的 `aquifers` 对象", VERIFIED if ok else MISMATCH, ev)
 
 
+def default_sources_jar() -> Path | None:
+    """The Loom genSources output for 26.3 inside this project, if it exists."""
+    base = ks.ROOT / ".gradle" / "loom-cache" / "minecraftMaven" / "net" / "minecraft"
+    found = sorted(base.glob("minecraft-merged-*/26.3/*-26.3-sources.jar")) if base.is_dir() else []
+    return found[-1] if found else None
+
+
 def find_constant_codec(sources: Path | None) -> str | None:
+    if sources is None:
+        sources = default_sources_jar()
     if sources is None:
         return None
     pat = re.compile(r"ConstantFunction\.java$")
@@ -246,9 +255,9 @@ def find_constant_codec(sources: Path | None) -> str | None:
         if not found:
             return None
         name, text = found[0].as_posix(), found[0].read_text(encoding="utf-8", errors="replace")
-    for ln in text.splitlines():
-        if "fieldOf(" in ln or "\"value\"" in ln or "\"argument\"" in ln:
-            return f"{name}: `{ln.strip()}`"
+    for i, ln in enumerate(text.splitlines(), 1):
+        if "fieldOf(" in ln:
+            return f"`{name}:{i}`：`{ln.strip()}`"
     return None
 
 
@@ -279,7 +288,7 @@ def claim_c4(sources: Path | None):
                   f"旧 `add` 参数键 {', '.join(keys_str(s) for s in old_types.get('add', {}))}")
     codec = find_constant_codec(sources)
     if codec:
-        ev.append(f"反编译源码：{codec}")
+        ev.append(f"反编译源码（`gradlew genSources`）：{codec}")
         verdict = VERIFIED if ok and "\"value\"" in codec else MISMATCH if not ok else PARTIAL
     else:
         ev.append("`constant` 的对象写法（`value` 还是 `argument`）原版数据里没有出现，需反编译源码确认（`--sources`）")
