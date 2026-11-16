@@ -202,6 +202,167 @@ def dependents_of_shapers() -> list[str]:
     return sorted(n for n in closure if n.split("/", 1)[1] not in SHAPERS)
 
 
+# ------------------------------------------------------------- materials ---
+
+def blk(block: str) -> dict:
+    return {"type": "minecraft:block", "result_state": block}
+
+
+def cond(if_true, then_run) -> dict:
+    return {"type": "minecraft:condition", "if_true": if_true, "then_run": then_run}
+
+
+def y_above(y: int) -> dict:
+    return {"type": "minecraft:y_above", "anchor": {"absolute": int(y)}, "surface_depth_multiplier": 0,
+            "add_stone_depth": False}
+
+
+def noise_above(noise: str, threshold: float, is_3d: bool = False) -> dict:
+    c = {"type": "minecraft:noise_threshold", "noise": noise, "min_threshold": float(threshold),
+         "max_threshold": 1000.0}
+    if is_3d:
+        c["is_3d"] = True
+    return c
+
+
+def noise_below(noise: str, threshold: float) -> dict:
+    return {"type": "minecraft:noise_threshold", "noise": noise, "min_threshold": -1000.0,
+            "max_threshold": float(threshold)}
+
+
+STEEP = {"type": "minecraft:steep"}
+UNDERWATER = {"type": "minecraft:not", "invert": "minecraft:not_underwater"}
+
+
+def band_rule(m: dict) -> dict:
+    """Horizontal limestone-like bands by absolute y (deterministic pattern from band_seed)."""
+    import random
+    rnd = random.Random(int(m["band_seed"]))
+    blocks = [b for b, _ in m["bands"]]
+    weights = [w for _, w in m["bands"]]
+    starts, y = [], int(m["tower_y"]) - 24
+    while y < int(m["band_top"]):
+        starts.append(y)
+        y += rnd.randint(int(m["band_min"]), int(m["band_max"]))
+    # block shares follow the weights exactly (proportional pool, shuffled), not just in expectation
+    total = sum(weights)
+    pool = []
+    for b, w in zip(blocks, weights):
+        pool += [b] * round(len(starts) * w / total)
+    pool += [blocks[0]] * (len(starts) - len(pool))
+    rnd.shuffle(pool)
+    bands = list(zip(starts, pool[:len(starts)]))
+    seq = [cond(y_above(y0), blk(b)) for y0, b in reversed(bands)]
+    seq.append(blk("minecraft:stone"))
+    return {"type": "minecraft:sequence", "sequence": seq}
+
+
+def karst_surface_rule(m: dict) -> dict:
+    bands = band_rule(m)
+    moss = m["moss_noise"]
+    tower = {"type": "minecraft:sequence", "sequence": [
+        cond("minecraft:on_floor", {"type": "minecraft:sequence", "sequence": [
+            cond(STEEP, bands),
+            cond(noise_above(moss, m["moss_top_threshold"]), blk("minecraft:moss_block")),
+            blk("minecraft:grass_block"),
+        ]}),
+        cond("minecraft:under_floor", {"type": "minecraft:sequence", "sequence": [
+            cond(STEEP, bands),
+            blk("minecraft:dirt"),
+        ]}),
+        cond(noise_above(moss, m["moss_wall_threshold"], is_3d=True), blk("minecraft:moss_block")),
+        bands,
+    ]}
+    rb = m["riverbed_noise"]
+    riverbed = cond(UNDERWATER, {"type": "minecraft:sequence", "sequence": [
+        cond("minecraft:on_floor", {"type": "minecraft:sequence", "sequence": [
+            cond(noise_below(rb, -0.3), blk("minecraft:clay")),
+            cond(noise_above(rb, 0.35), blk("minecraft:sand")),
+            blk("minecraft:gravel"),
+        ]}),
+        cond("minecraft:under_floor", blk("minecraft:gravel")),
+    ]})
+    foot = cond(y_above(m["foot_y"]), cond("minecraft:on_floor", cond(STEEP, {"type": "minecraft:sequence", "sequence": [
+        cond(noise_above(moss, 0.0), blk("minecraft:coarse_dirt")),
+        blk("minecraft:gravel"),
+    ]})))
+    return {"type": "minecraft:sequence", "sequence": [cond(y_above(m["tower_y"]), tower), riverbed, foot]}
+
+
+def overworld_material_rule() -> dict:
+    """Vanilla overworld material rule with the karst surface rule tried first inside the karst biome."""
+    rule = load(VWG / "material_rule" / "overworld.json")
+    hits = 0
+
+    def walk(node):
+        nonlocal hits
+        if isinstance(node, dict):
+            if node.get("then_run") == "minecraft:overworld/surface":
+                node["then_run"] = {"type": "minecraft:sequence", "sequence": [
+                    cond({"type": "minecraft:biome", "biome_is": BIOME_ID}, f"{NS}:karst_surface"),
+                    "minecraft:overworld/surface"]}
+                hits += 1
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(rule)
+    if hits != 1:
+        raise SystemExit("unexpected vanilla material_rule/overworld.json shape; update overworld_material_rule()")
+    return rule
+
+
+# ------------------------------------------------------------ vegetation ---
+
+def apply_biome_extras(b: dict, params: dict, files: dict) -> None:
+    bp, v = params["biome"], params["vegetation"]
+    remove = set(bp.get("remove_features", []))
+    b["features"] = [[f for f in step if f not in remove] for step in b["features"]]
+    attrs = b.setdefault("attributes", {})
+    attrs["minecraft:visual/fog_color"] = bp["fog_color"]
+    attrs["minecraft:visual/sky_color"] = bp["sky_color"]
+    attrs["minecraft:visual/water_fog_color"] = bp["water_fog_color"]
+    b["effects"]["water_color"] = bp["water_color"]
+
+    pf, fd = OUT_WG / "placed_feature", OUT_WG / "feature"
+    in_biome = {"type": "minecraft:biome"}
+    square = {"type": "minecraft:in_square"}
+    survive_sapling = {"type": "minecraft:block_predicate_filter",
+                       "predicate": {"type": "minecraft:would_survive", "state": "minecraft:oak_sapling"}}
+    lake = load(VWG / "feature" / "lake_lava.json")
+    lake["fluid"] = {"id": "minecraft:water", "properties": {"level": "0"}}
+    lake["barrier"] = {"id": "minecraft:dirt"}
+    files[fd / "pond.json"] = dumps(lake)
+    placed = {
+        "pond": {"feature": f"{NS}:pond", "placement": [
+            {"type": "minecraft:rarity_filter", "chance": int(v["pond_rarity"])}, square,
+            {"type": "minecraft:heightmap", "heightmap": "WORLD_SURFACE_WG"}, in_biome]},
+        "tower_vines": {"feature": "minecraft:vines", "placement": [
+            {"type": "minecraft:count", "count": int(v["vine_count"])}, square,
+            {"type": "minecraft:height_range", "height": {"type": "minecraft:uniform",
+                                                          "min_inclusive": {"absolute": 66},
+                                                          "max_inclusive": {"absolute": 240}}}, in_biome]},
+        "bamboo": {"feature": "minecraft:bamboo_no_podzol", "placement": [
+            {"type": "minecraft:rarity_filter", "chance": int(v["bamboo_rarity"])}, square,
+            {"type": "minecraft:heightmap", "heightmap": "MOTION_BLOCKING"}, in_biome]},
+        "azalea_trees": {"feature": "minecraft:azalea_tree", "placement": [
+            {"type": "minecraft:count", "count": int(v["azalea_count"])}, square,
+            {"type": "minecraft:surface_water_depth_filter", "max_water_depth": 0},
+            {"type": "minecraft:heightmap", "heightmap": "OCEAN_FLOOR"}, survive_sapling, in_biome]},
+        "jungle_bushes": {"feature": "minecraft:jungle_bush", "placement": [
+            {"type": "minecraft:count", "count": int(v["jungle_bush_count"])}, square,
+            {"type": "minecraft:surface_water_depth_filter", "max_water_depth": 0},
+            {"type": "minecraft:heightmap", "heightmap": "OCEAN_FLOOR"}, survive_sapling, in_biome]},
+    }
+    for name, obj in placed.items():
+        files[pf / f"{name}.json"] = dumps(obj)
+    # karstscape features are unique to this biome, so appending them cannot create a feature-order cycle
+    b["features"][1].append(f"{NS}:pond")
+    b["features"][9].extend([f"{NS}:azalea_trees", f"{NS}:jungle_bushes", f"{NS}:bamboo", f"{NS}:tower_vines"])
+
+
 def add_towers(final_density: dict, towers_ref: str) -> dict:
     """vanilla: add(terrain, beardifier) -> add(max(terrain, towers), beardifier).
 
@@ -236,6 +397,9 @@ def build(params: dict) -> dict[Path, str]:
     b["downfall"] = float(params["biome"]["downfall"])
     if not params["biome"].get("carvers", True):
         b["carvers"] = []  # vanilla cave/canyon carvers would bore holes and overhangs into the towers
+    apply_biome_extras(b, params, files)
+    files[OUT_WG / "material_rule" / "karst_surface.json"] = dumps(karst_surface_rule(params["material"]))
+    files[OUT_WG / "material_rule" / "overworld.json"] = dumps(overworld_material_rule())
     files[OUT_WG / "biome" / "tower_karst.json"] = dumps(b)
 
     presets = params["presets"]
@@ -263,7 +427,9 @@ def build(params: dict) -> dict[Path, str]:
             files[dfdir / f"{rel.split('/', 1)[1]}.json"] = dumps(src)
 
         ns = load(VWG / "noise_settings" / "overworld.json")
-        files[OUT_WG / "noise_settings" / f"{preset}.json"] = dumps(rewrite_refs(ns, mapping))
+        ns = rewrite_refs(ns, mapping)
+        ns["material_rule"] = f"{NS}:overworld"  # vanilla overworld rule + karst surface first in tower_karst
+        files[OUT_WG / "noise_settings" / f"{preset}.json"] = dumps(ns)
 
         wp = load(VWG / "world_preset" / "normal.json")
         ow = wp["dimensions"]["minecraft:overworld"]

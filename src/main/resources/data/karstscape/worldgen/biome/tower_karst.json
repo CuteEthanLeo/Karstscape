@@ -117,24 +117,24 @@
       },
       "modifier": "overlay"
     },
-    "minecraft:visual/sky_color": "#78a7ff"
+    "minecraft:visual/sky_color": "#8fb5e6",
+    "minecraft:visual/fog_color": "#d3e1ee",
+    "minecraft:visual/water_fog_color": "#2f6f86"
   },
   "carvers": [],
   "downfall": 0.8,
   "effects": {
-    "water_color": "#3f76e4"
+    "water_color": "#3d8fb0"
   },
   "features": [
     [],
     [
-      "minecraft:lake_lava_underground",
-      "minecraft:lake_lava_surface"
+      "karstscape:pond"
     ],
     [
       "minecraft:amethyst_geode"
     ],
     [
-      "minecraft:monster_room",
       "minecraft:monster_room_deep"
     ],
     [],
@@ -186,7 +186,11 @@
       "minecraft:red_mushroom_normal",
       "minecraft:patch_pumpkin",
       "minecraft:patch_sugar_cane",
-      "minecraft:patch_firefly_bush_near_water"
+      "minecraft:patch_firefly_bush_near_water",
+      "karstscape:azalea_trees",
+      "karstscape:jungle_bushes",
+      "karstscape:bamboo",
+      "karstscape:tower_vines"
     ],
     [
       "minecraft:freeze_top_layer"
