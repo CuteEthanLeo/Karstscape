@@ -1,0 +1,7 @@
+# Normalize line endings in the repo (system git has core.autocrlf=true).
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.jar binary
+*.png binary
+*.zip binary
