@@ -1,0 +1,5 @@
+# WARN lines ignored by tools/headless_test.py because they depend on timing or machine load,
+# not on our code. One regex per line, matched against the normalized key. Every entry needs a reason.
+
+# Tick-lag warning; depends on machine load during world creation.
+^WARN \(Minecraft\) Can't keep up! Is the server overloaded\?

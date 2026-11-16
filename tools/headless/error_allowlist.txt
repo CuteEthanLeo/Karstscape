@@ -1,0 +1,7 @@
+# ERROR lines that do not fail tools/headless_test.py. One regex per line, matched against the
+# normalized key "LEVEL (logger) message". Every entry needs a reason.
+
+# OSHI (system-info library used by vanilla) cannot read Windows performance-counter names on this
+# machine (non-English Windows / perf counter registry). Appears with the plain vanilla 26.3 server
+# jar too; harmless, only affects the hardware info in crash reports.
+^ERROR \(HkeyPerformanceDataUtil\) Unable to locate English counter names in registry Perflib

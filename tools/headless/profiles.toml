@@ -1,0 +1,29 @@
+# Profiles for tools/headless_test.py.
+#
+# Each profile starts the dev dedicated server (gradlew runHeadlessServer, run dir run-headless/)
+# with a fixed seed and world preset, waits for "Done (", sends the console commands in order
+# (each must print a line matching `expect` within `timeout` seconds), then sends `stop`.
+#
+#   seed        level-seed
+#   level_type  world preset id (written escaped as minecraft\:normal)
+#   level_name  world folder inside run-headless/ (one per profile so presets never mix)
+#   baseline    name of tools/headless/baselines/<name>.warn.txt
+#   collect     glob patterns (relative to run-headless/) copied into the result folder;
+#               with --repeat N they are also compared across runs (determinism check)
+
+[vanilla]
+seed = "20260915"
+level_type = "minecraft:normal"
+level_name = "ks_vanilla"
+baseline = "vanilla"
+collect = []
+
+[[vanilla.commands]]
+send = "seed"
+expect = 'Seed: \[20260915\]'
+timeout = 60
+
+[[vanilla.commands]]
+send = "save-all flush"
+expect = 'Saved the game'
+timeout = 300
