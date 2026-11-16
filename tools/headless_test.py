@@ -578,6 +578,7 @@ def main() -> int:
     ap.add_argument("--profile", default="vanilla")
     ap.add_argument("--fresh", action="store_true", help="delete the profile's world before starting")
     ap.add_argument("--repeat", type=int, default=1, help="run N times; compare collected files")
+    ap.add_argument("--seed", help="override the profile seed (world folder gets a _s<seed> suffix)")
     ap.add_argument("--update-baseline", action="store_true", help="merge observed WARN lines into the baseline")
     ap.add_argument("--timeout-start", type=float, default=900.0, help="seconds to wait for 'Done ('")
     ap.add_argument("--gradle-arg", action="append", default=[],
@@ -590,10 +591,27 @@ def main() -> int:
     if args.profile not in profiles:
         log(f"ERROR: unknown profile {args.profile!r}; known: {sorted(profiles)}")
         return EXIT_INFRA
-    profile = profiles[args.profile]
-    java_home = ks.find_java_home(25)
+    profile = dict(profiles[args.profile])
+    if args.seed is not None:
+        profile["seed"] = args.seed
+        profile["level_name"] = f"{profile['level_name']}_s{args.seed}"
+    # "{seed}" in a command or expectation stands for the effective seed
+    seed = str(profile["seed"])
 
-    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
+    def fill(key, value):
+        if not isinstance(value, str):
+            return value
+        return value.replace("{seed}", re.escape(seed) if key == "expect" else seed)
+
+    profile["commands"] = [{k: fill(k, v) for k, v in c.items()} for c in profile.get("commands", [])]
+    java_home = ks.find_java_home(25)
+    gen = subprocess.run([sys.executable, str(ks.ROOT / "tools" / "gen_worldgen.py"), "--check"],
+                         capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if gen.returncode != 0:
+        log("ERROR: generated worldgen files are stale or the vanilla export is missing:\n" + gen.stdout + gen.stderr)
+        return EXIT_INFRA
+
+    stamp =dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     out_root = RESULTS_DIR / f"{stamp}-{args.profile}"
     results = []
     with RunLock(RUN_DIR / ".headless.lock"):
