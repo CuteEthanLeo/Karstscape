@@ -1,0 +1,18 @@
+{
+	"schemaVersion": 1,
+	"id": "karstscape",
+	"version": "${version}",
+	"name": "Karstscape",
+	"description": "Tower karst landscapes for the Overworld: steep green-topped stone pillars rising from rivers and plains. Server-side worldgen, vanilla blocks only.",
+	"authors": [
+		"FloorGod_MC BILI"
+	],
+	"license": "MIT",
+	"environment": "*",
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
