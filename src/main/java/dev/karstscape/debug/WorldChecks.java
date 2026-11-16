@@ -64,6 +64,8 @@ public final class WorldChecks {
 		int x0 = (ccx - r) * 16, z0 = (ccz - r) * 16;
 		long mismatch = 0, mismatchBig = 0, overhangCols = 0, overhangBlocks = 0;
 		com.google.gson.JsonArray examples = new com.google.gson.JsonArray();
+		java.util.Map<String, Integer> wallBlocks = new java.util.TreeMap<>(), topBlocks = new java.util.TreeMap<>(),
+				plants = new java.util.TreeMap<>();
 		final int minOverhangY = 86;
 		MessageDigest sha = MessageDigest.getInstance("SHA-256");
 		BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
@@ -75,6 +77,7 @@ public final class WorldChecks {
 						int wx = chunk.getPos().getMinBlockX() + lx, wz = chunk.getPos().getMinBlockZ() + lz;
 						int t = terrainTop(chunk, lx, lz, minY, maxY);
 						top[(wz - z0) * span + (wx - x0)] = t;
+						census(chunk, lx, lz, t, wallBlocks, topBlocks, plants);
 						boolean gap = false;
 						int colGaps = 0;
 						for (int y = t - 1; y > minOverhangY; y--) {
@@ -163,11 +166,51 @@ public final class WorldChecks {
 		over.addProperty("air_blocks_below_terrain_top", overhangBlocks);
 		over.add("examples", examples);
 		o.add("overhangs", over);
+		o.add("tower_wall_blocks", topN(wallBlocks, 12));
+		o.add("tower_top_blocks", topN(topBlocks, 8));
+		o.add("plants_above_y60", topN(plants, 16));
 		Files.createDirectories(out.getParent());
 		try (Writer w = Files.newBufferedWriter(out, StandardCharsets.UTF_8)) {
 			new GsonBuilder().setPrettyPrinting().create().toJson(o, w);
 		}
 		Karstscape.LOGGER.info("Karstscape check took {} s", (System.nanoTime() - t0) / 1e9);
+		return o;
+	}
+
+	private static final int TOWER_Y = 92;
+
+	private static String name(BlockState s) {
+		return s.getBlock().builtInRegistryHolder().unwrapKey().map(k -> k.identifier().getPath()).orElse("?");
+	}
+
+	/** Blocks on exposed tower wall faces (y >= TOWER_Y, air beside), tower top blocks, plants. */
+	private static void census(LevelChunk chunk, int lx, int lz, int t, java.util.Map<String, Integer> walls,
+							   java.util.Map<String, Integer> tops, java.util.Map<String, Integer> plants) {
+		BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+		if (t >= TOWER_Y) tops.merge(name(chunk.getBlockState(p.set(lx, t, lz))), 1, Integer::sum);
+		for (int y = Math.min(t + 40, 300); y > 60; y--) {
+			BlockState s = chunk.getBlockState(p.set(lx, y, lz));
+			if (s.isAir()) continue;
+			if (!terrain(s)) {
+				plants.merge(name(s), 1, Integer::sum);
+				continue;
+			}
+			if (y < TOWER_Y || y >= t || lx == 0 || lz == 0 || lx == 15 || lz == 15) continue;
+			boolean exposed = false;
+			for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+				BlockState n = chunk.getBlockState(p.set(lx + d[0], y, lz + d[1]));
+				if (n.isAir() || !terrain(n)) exposed = true;
+			}
+			p.set(lx, y, lz);
+			if (exposed) walls.merge(name(s), 1, Integer::sum);
+		}
+	}
+
+	private static JsonObject topN(java.util.Map<String, Integer> m, int n) {
+		JsonObject o = new JsonObject();
+		long total = m.values().stream().mapToLong(Integer::longValue).sum();
+		m.entrySet().stream().sorted((a, b) -> b.getValue() - a.getValue()).limit(n)
+				.forEach(e -> o.addProperty(e.getKey(), Math.round(1000.0 * e.getValue() / Math.max(1, total)) / 10.0 + "% (" + e.getValue() + ")"));
 		return o;
 	}
 
