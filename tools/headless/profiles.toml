@@ -20,7 +20,7 @@ collect = []
 
 [[vanilla.commands]]
 send = "seed"
-expect = 'Seed: \[20260915\]'
+expect = 'Seed: \[{seed}\]'
 timeout = 60
 
 [[vanilla.commands]]
@@ -33,11 +33,11 @@ seed = "20260915"
 level_type = "karstscape:karstscape"
 level_name = "ks_karstscape"
 baseline = "vanilla"
-collect = []
+collect = ["karstscape_export/**/*.json", "karstscape_export/**/*.png"]
 
 [[karstscape.commands]]
 send = "seed"
-expect = 'Seed: \[20260915\]'
+expect = 'Seed: \[{seed}\]'
 timeout = 60
 
 [[karstscape.commands]]
@@ -45,14 +45,43 @@ send = "locate biome karstscape:tower_karst"
 expect = 'The nearest karstscape:tower_karst is at|Could not find a biome'
 timeout = 300
 
+# large area, coarse: karst share of land
+[[karstscape.commands]]
+send = "karstscape export 12288 0 0 64"
+expect = 'Karstscape export (done: \S*_r12288_s64\b|failed)'
+timeout = 900
+
+# medium area around spawn: shape of regions and edges
+[[karstscape.commands]]
+send = "karstscape export 3072 0 0 8"
+expect = 'Karstscape export (done: \S*_r3072_s8\b|failed)'
+timeout = 900
+
 [karst_only]
 seed = "20260915"
 level_type = "karstscape:karst_only"
 level_name = "ks_karst_only"
 baseline = "vanilla"
-collect = []
+collect = ["karstscape_export/**/*.json", "karstscape_export/**/*.png"]
 
 [[karst_only.commands]]
 send = "locate biome karstscape:tower_karst"
 expect = 'The nearest karstscape:tower_karst is at|Could not find a biome'
 timeout = 300
+
+[[karst_only.commands]]
+send = "karstscape export 2048 0 0 8"
+expect = 'Karstscape export (done: \S*_r2048_s8\b|failed)'
+timeout = 900
+
+[tune]
+seed = "20260915"
+level_type = "karstscape:karstscape"
+level_name = "ks_tune"
+baseline = "vanilla"
+collect = []
+
+[[tune.commands]]
+send = "karstscape export 12288 0 0 64"
+expect = 'Karstscape export (done: \S*_r12288_s64\b|failed)'
+timeout = 900

@@ -19,12 +19,16 @@
 # normal Overworld with karst regions (target: 5–10 % of land)
 display_en = "Karstscape"
 display_zh = "喀斯特峰林"
-temperature = [-0.15, 0.55]      # temperate .. warm (not hot deserts, not cold)
-humidity = [0.1, 1.0]            # humid half
-continentalness = [0.03, 1.0]    # inland (vanilla coast ends at 0.03)
+# Tuned 2026-11-16 with `headless_test.py --profile tune --seed=…` (24 km squares, 3 seeds):
+# 8.2–9.4 % of land, 9–14 regions >= 1 km2 each, largest 2.7–4.8 km2.
+# Not constrained on humidity: vegetation is the highest-frequency climate noise and splits regions
+# into many tiny patches (with humidity >= 0.1 only 2 regions >= 1 km2 per 24 km square).
+temperature = [0.2, 0.55]        # the vanilla "warm" band (savanna/jungle latitudes), no deserts, no cold
+humidity = [-1.0, 1.0]
+continentalness = [0.18, 1.0]    # well inland (vanilla coast ends at 0.03)
 erosion = [-0.2225, 1.0]         # medium .. high erosion = flatter vanilla terrain
 weirdness = [-1.0, 1.0]
-edge = 0.06                      # ramp width in climate units on every closed side
+edge = 0.05                      # ramp width in climate units on every closed side
 
 [presets.karst_only]
 # debug / aerial preset: all land is karst
@@ -35,7 +39,7 @@ humidity = [-1.0, 1.0]
 continentalness = [-0.11, 1.0]   # everything that is not ocean
 erosion = [-1.0, 1.0]
 weirdness = [-1.0, 1.0]
-edge = 0.06
+edge = 0.05
 
 # ------------------------------------------------------------------ plain --
 # Inside the mask the vanilla terrain is cut down to an inter-tower plain: hills above the plain are lowered,
