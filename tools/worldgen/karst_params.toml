@@ -51,8 +51,29 @@ cap_noise = "minecraft:surface"
 cap_noise_xz_scale = 1.0
 min_factor = 6.0           # terrain "factor" floor inside the mask (higher = flatter, less 3D noise)
 
+# ----------------------------------------------------------------- towers --
+# karstscape:tower_field (Java density function). Combined as max(terrain, towers) outside the
+# interpolated node, so walls are exact per block. Heights are above base_y (the plain is ~y68-78).
+[towers]
+cell_size = 58           # one candidate tower per cell -> mean spacing ~ cell size
+probability = 0.93       # chance a cell has a tower where the mask is full
+mask_min = 0.25          # no towers where the mask (at the tower centre) is below this ...
+mask_full = 0.85         # ... full density/height from here on
+base_y = 62
+height_min = 52
+height_max = 150
+tall_chance = 0.06       # a few towers get up to +tall_extra
+tall_extra = 24
+radius_min = 7
+radius_max = 31          # radius uniform in [min, max]
+taper = 0.12             # fraction of the radius used by the wall slope (smaller = more vertical)
+dome = 0.5               # dome height as a fraction of the top radius
+wobble = 0.2            # radius perturbation (3 seeded harmonics)
+twin_chance = 0.15       # a smaller attached second peak
+
 # ------------------------------------------------------------------ biome --
 [biome]
 template = "plains"        # vanilla biome copied for features / spawns until M3
 temperature = 0.8
 downfall = 0.8
+carvers = false          # no carver caves in towers (karst caves are a later feature, SPEC §7)

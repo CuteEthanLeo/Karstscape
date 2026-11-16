@@ -1,0 +1,19 @@
+{
+  "type": "karstscape:tower_field",
+  "mask": "karstscape:karst_only/mask",
+  "cell_size": 58,
+  "probability": 0.93,
+  "mask_min": 0.25,
+  "mask_full": 0.85,
+  "base_y": 62,
+  "height_min": 52,
+  "height_max": 150,
+  "tall_chance": 0.06,
+  "tall_extra": 24,
+  "radius_min": 7,
+  "radius_max": 31,
+  "taper": 0.12,
+  "dome": 0.5,
+  "wobble": 0.2,
+  "twin_chance": 0.15
+}

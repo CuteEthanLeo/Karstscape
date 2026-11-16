@@ -202,6 +202,17 @@ def dependents_of_shapers() -> list[str]:
     return sorted(n for n in closure if n.split("/", 1)[1] not in SHAPERS)
 
 
+def add_towers(final_density: dict, towers_ref: str) -> dict:
+    """vanilla: add(terrain, beardifier) -> add(max(terrain, towers), beardifier).
+
+    The tower branch sits outside `interpolated`, so it is evaluated per block (vertical walls)."""
+    fd = copy.deepcopy(final_density)
+    if not (fd.get("type") == "minecraft:add" and fd.get("right") == {"type": "minecraft:beardifier"}):
+        raise SystemExit("unexpected vanilla final_density shape; update add_towers()")
+    fd["left"] = {"type": "minecraft:max", "left": fd["left"], "right": towers_ref}
+    return fd
+
+
 def rewrite_refs(obj, mapping: dict[str, str]):
     if isinstance(obj, str):
         return mapping.get(obj, obj)
@@ -223,6 +234,8 @@ def build(params: dict) -> dict[Path, str]:
     b = load(VWG / "biome" / f"{params['biome']['template']}.json")
     b["temperature"] = float(params["biome"]["temperature"])
     b["downfall"] = float(params["biome"]["downfall"])
+    if not params["biome"].get("carvers", True):
+        b["carvers"] = []  # vanilla cave/canyon carvers would bore holes and overhangs into the towers
     files[OUT_WG / "biome" / "tower_karst.json"] = dumps(b)
 
     presets = params["presets"]
@@ -239,10 +252,15 @@ def build(params: dict) -> dict[Path, str]:
         files[dfdir / "mask.json"] = dumps(mask_function(box, edge))
         for name, fn in shaper_functions(preset, plain).items():
             files[dfdir / f"{name}.json"] = dumps(fn)
+        towers = {"type": f"{NS}:tower_field", "mask": f"{NS}:{preset}/mask"}
+        towers.update(params["towers"])
+        files[dfdir / "towers.json"] = dumps(towers)
         for d in deps:
             rel = d.split(":", 1)[1]  # overworld/...
-            src = load(VWG / "density_function" / f"{rel}.json")
-            files[dfdir / f"{rel.split('/', 1)[1]}.json"] = dumps(rewrite_refs(src, mapping))
+            src = rewrite_refs(load(VWG / "density_function" / f"{rel}.json"), mapping)
+            if rel == "overworld/final_density":
+                src = add_towers(src, f"{NS}:{preset}/towers")
+            files[dfdir / f"{rel.split('/', 1)[1]}.json"] = dumps(src)
 
         ns = load(VWG / "noise_settings" / "overworld.json")
         files[OUT_WG / "noise_settings" / f"{preset}.json"] = dumps(rewrite_refs(ns, mapping))

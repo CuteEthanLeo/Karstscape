@@ -1,6 +1,9 @@
 package dev.karstscape;
 
 import dev.karstscape.debug.KarstCommands;
+import dev.karstscape.worldgen.TowerField;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
@@ -17,6 +20,7 @@ public final class Karstscape implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, id("tower_field"), TowerField.CODEC);
 		KarstCommands.register();
 		LOGGER.info("Karstscape initialized");
 	}
