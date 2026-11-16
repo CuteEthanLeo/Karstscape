@@ -67,6 +67,45 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(a["spam_warns"], ["WARN (Minecraft) Spam #"])
 
 
+class NormalizeMoreTests(unittest.TestCase):
+    def test_identity_hash_any_length(self):
+        keys = {ht.normalize(f"Leaked net.minecraft.Foo@{h}") for h in ("1a2b3c4", "7f3e2d1a", "deadbeef", "abc")}
+        self.assertEqual(keys, {"Leaked net.minecraft.Foo@<HEX>"})
+
+    def test_digits_inside_identifiers_survive(self):
+        self.assertNotEqual(ht.normalize("feature karstscape:layer_1 failed"),
+                            ht.normalize("feature karstscape:layer_2 failed"))
+        self.assertEqual(ht.normalize("took 123ms at y=-64"), "took #ms at y=#")
+
+
+class ClassifyTests(unittest.TestCase):
+    GAME = "[10:00:00] [main/INFO] (FabricLoader/GameProvider) Loading Minecraft 26.3 with Fabric Loader 0.20.1"
+
+    def test_compile_failure_is_infra(self):
+        lines = ["> Task :compileJava FAILED", "FAILURE: Build failed with an exception.", "BUILD FAILED in 3s"]
+        self.assertEqual(ht.classify_failure("fatal", lines, 2), ht.EXIT_INFRA)
+
+    def test_game_failure_then_build_failed_is_error(self):
+        lines = [self.GAME, "[10:00:05] [main/ERROR] (Minecraft) boom", "BUILD FAILED in 20s"]
+        self.assertEqual(ht.classify_failure("fatal", lines, 2), ht.EXIT_ERROR)
+
+    def test_datapack_failure_exits_zero_is_error(self):
+        lines = [self.GAME, "[10:00:05] [main/WARN] (Minecraft) Failed to load datapacks, can't proceed with server load"]
+        self.assertTrue(ht.FATAL_CONSOLE_RE.search(lines[1]))
+        self.assertEqual(ht.classify_failure("fatal", lines, 1), ht.EXIT_ERROR)
+        self.assertEqual(ht.classify_failure("exited", lines, None), ht.EXIT_ERROR)
+
+    def test_server_crash_report_line(self):
+        line = "[10:00:09] [Server thread/ERROR] (Minecraft) This crash report has been saved to: C:\\x\\crash.txt"
+        self.assertEqual(ht.classify_failure("fatal", [self.GAME, line], 1), ht.EXIT_ERROR)
+
+    def test_port_and_timeout(self):
+        lines = [self.GAME, "[10:00:05] [Server thread/WARN] (Minecraft) **** FAILED TO BIND TO PORT!"]
+        self.assertEqual(ht.classify_failure("fatal", lines, 1), ht.EXIT_INFRA)
+        self.assertEqual(ht.classify_failure("timeout", lines, None), ht.EXIT_TIMEOUT)
+        self.assertEqual(ht.classify_failure("exited", ["BUILD SUCCESSFUL in 2s"], None), ht.EXIT_INFRA)
+
+
 class PropertiesTests(unittest.TestCase):
     def test_escape(self):
         self.assertEqual(ht.escape_prop_value("minecraft:normal"), "minecraft\\:normal")

@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -75,7 +76,8 @@ def _candidate_java_homes() -> list[Path]:
             for vendor in ("Java", "Eclipse Adoptium", "Microsoft", "Zulu", "Amazon Corretto"):
                 base = root / vendor
                 if base.is_dir():
-                    cands.extend(sorted(p for p in base.iterdir() if p.is_dir() and "jdk" in p.name.lower()))
+                    # any subdirectory; the release file decides (Zulu installs to zulu-<major>, etc.)
+                    cands.extend(sorted(p for p in base.iterdir() if p.is_dir()))
     else:
         for base in (Path("/usr/lib/jvm"), Path("/Library/Java/JavaVirtualMachines")):
             if base.is_dir():
@@ -151,6 +153,49 @@ def safe_rmtree(path: Path, allowed_parents: list[Path]) -> None:
     raise RuntimeError(f"refusing to delete {path}: not inside {allowed_parents}")
 
 
+def replace_dir(tmp: Path, out_dir: Path, allowed_parents: list[Path]) -> None:
+    """Swap a fully built `tmp` into `out_dir` without ever leaving neither in place.
+
+    out_dir -> out_dir.old, tmp -> out_dir, then delete .old. Renames are retried because Windows
+    briefly locks freshly written trees (indexer / antivirus). On failure the old tree is restored.
+    """
+    old = out_dir.with_name(out_dir.name + ".old")
+    safe_rmtree(old, allowed_parents)
+
+    def _rename(src: Path, dst: Path) -> None:
+        for attempt in range(10):
+            try:
+                src.rename(dst)
+                return
+            except PermissionError:
+                if attempt == 9:
+                    raise
+                time.sleep(0.2 * (attempt + 1))
+
+    if out_dir.exists():
+        _rename(out_dir, old)
+    try:
+        _rename(tmp, out_dir)
+    except OSError:
+        if old.exists() and not out_dir.exists():
+            _rename(old, out_dir)
+        raise
+    try:
+        safe_rmtree(old, allowed_parents)
+    except OSError as e:
+        print(f"warning: could not delete {old}: {e}", file=sys.stderr)
+
+
+def read_gradle_properties() -> dict[str, str]:
+    props: dict[str, str] = {}
+    for ln in (ROOT / "gradle.properties").read_text(encoding="utf-8").splitlines():
+        ln = ln.strip()
+        if ln and not ln.startswith("#") and "=" in ln:
+            k, v = ln.split("=", 1)
+            props[k.strip()] = v.strip()
+    return props
+
+
 def loom_cache_server_jar(version: str) -> Path:
     gradle_home = Path(os.environ.get("GRADLE_USER_HOME", Path.home() / ".gradle"))
     return gradle_home / "caches" / "fabric-loom" / version / "minecraft-server.jar"
@@ -167,8 +212,15 @@ def kill_tree(pid: int, force: bool = True) -> None:
         subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         import signal
+        sig = signal.SIGKILL if force else signal.SIGTERM
         try:
-            os.killpg(os.getpgid(pid), signal.SIGKILL if force else signal.SIGTERM)
+            pgid = os.getpgid(pid)
+            # Only signal the whole group if `pid` leads its own group (started with
+            # start_new_session) - never our own group.
+            if pgid == pid and pgid != os.getpgrp():
+                os.killpg(pgid, sig)
+            else:
+                os.kill(pid, sig)
         except ProcessLookupError:
             pass
 
@@ -217,26 +269,63 @@ def process_command_line(pid: int) -> str:
         return ""
 
 
-def find_java_pids(*needles: str) -> list[int]:
-    """PIDs of running java processes whose command line contains every needle (case-insensitive)."""
-    if os.name != "nt":
-        out = subprocess.run(["ps", "-eo", "pid=,args="], capture_output=True, text=True).stdout
-        rows = [ln.strip().split(None, 1) for ln in out.splitlines() if ln.strip()]
-    else:
+def _process_table() -> list[tuple[int, int, str, str]]:
+    """(pid, parent pid, name, command line) for every process (best effort)."""
+    if os.name == "nt":
         # No double quotes in the script: they do not survive Windows argument quoting into PowerShell 5.1.
-        ps = ("Get-CimInstance Win32_Process | Where-Object { $_.Name -in 'java.exe','javaw.exe' } | "
-              "ForEach-Object { '{0}{1}{2}' -f $_.ProcessId, [char]9, $_.CommandLine }")
+        ps = ("Get-CimInstance Win32_Process | ForEach-Object { '{0}{1}{2}{1}{3}{1}{4}' -f "
+              "$_.ProcessId, [char]9, $_.ParentProcessId, $_.Name, $_.CommandLine }")
         out = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
                              capture_output=True, text=True, errors="replace").stdout
-        rows = [ln.split("\t", 1) for ln in out.splitlines() if "\t" in ln]
-    pids = []
-    for row in rows:
-        if len(row) == 2 and all(n.lower() in row[1].lower() for n in needles):
-            try:
-                pids.append(int(row[0]))
-            except ValueError:
-                pass
-    return pids
+        rows = []
+        for ln in out.splitlines():
+            parts = ln.split("	", 3)
+            if len(parts) == 4:
+                try:
+                    rows.append((int(parts[0]), int(parts[1]), parts[2], parts[3]))
+                except ValueError:
+                    pass
+        return rows
+    out = subprocess.run(["ps", "-eo", "pid=,ppid=,comm=,args="], capture_output=True, text=True).stdout
+    rows = []
+    for ln in out.splitlines():
+        parts = ln.split(None, 3)
+        if len(parts) >= 3:
+            rows.append((int(parts[0]), int(parts[1]), parts[2], parts[3] if len(parts) > 3 else ""))
+    return rows
+
+
+def find_descendant_java_pids(root_pid: int, *needles: str) -> list[int]:
+    """Java processes below `root_pid` in the process tree whose command line contains every needle."""
+    rows = _process_table()
+    children: dict[int, list[int]] = {}
+    for pid, ppid, _name, _cmd in rows:
+        children.setdefault(ppid, []).append(pid)
+    below, todo = set(), [root_pid]
+    while todo:
+        for c in children.get(todo.pop(), []):
+            if c not in below and c != root_pid:
+                below.add(c)
+                todo.append(c)
+    return sorted(pid for pid, _pp, name, cmd in rows
+                  if pid in below and name.lower() in ("java.exe", "javaw.exe", "java")
+                  and all(n.lower() in cmd.lower() for n in needles))
+
+
+def process_start_epoch(pid: int) -> float | None:
+    """Process start time as a Unix timestamp, or None if unknown."""
+    if os.name == "nt":
+        ps = f"([DateTimeOffset](Get-Process -Id {pid} -ErrorAction Stop).StartTime).ToUnixTimeSeconds()"
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True)
+        try:
+            return float(r.stdout.strip())
+        except ValueError:
+            return None
+    try:
+        r = subprocess.run(["ps", "-o", "etimes=", "-p", str(pid)], capture_output=True, text=True)
+        return time.time() - float(r.stdout.strip())
+    except ValueError:
+        return None
 
 
 def decode_line(raw: bytes) -> str:

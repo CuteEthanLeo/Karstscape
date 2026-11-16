@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import gzip
 import json
 import os
 import re
@@ -37,9 +38,14 @@ RESULTS_DIR = ks.ROOT / "build" / "headless"
 PORT = 25599
 
 DONE_RE = re.compile(r"Done \([\d.,]+s\)! For help")
-FATAL_CONSOLE_RE = re.compile(
-    r"FAILED TO BIND TO PORT|BUILD FAILED|---- Minecraft Crash Report ----|Crash report saved to|"
-    r"Failed to start the minecraft server")
+# Game-side fatal lines (26.3: MinecraftServer / server.Main / client). A broken datapack or worldgen JSON
+# only logs "Failed to load datapacks, can't proceed..." and the JVM then exits with code 0.
+CRASH_CONSOLE_RE = re.compile(
+    r"---- Minecraft Crash Report ----|Crash report saved to|This crash report has been saved to|"
+    r"Encountered an unexpected exception|Failed to start the minecraft server|"
+    r"Failed to load datapacks, can't proceed")
+INFRA_CONSOLE_RE = re.compile(r"BUILD FAILED|FAILED TO BIND TO PORT")
+FATAL_CONSOLE_RE = re.compile(f"{CRASH_CONSOLE_RE.pattern}|{INFRA_CONSOLE_RE.pattern}")
 STOPPED_RE = re.compile(r"Stopping server")
 LOG_LINE_RE = re.compile(
     r"^\[(?P<time>\d\d:\d\d:\d\d)\] \[(?P<thread>[^\]]+)/(?P<level>[A-Z]+)\]:?\s*(?:\((?P<logger>[^)]*)\)\s*)?(?P<msg>.*)$")
@@ -55,6 +61,25 @@ SETTLE_AFTER_DONE = 1.0
 
 def log(msg: str) -> None:
     print(f"[headless] {msg}", flush=True)
+
+
+def game_started(lines: list[str]) -> bool:
+    """True once the game JVM has logged anything (Gradle's own output never matches LOG_LINE_RE)."""
+    return any(LOG_LINE_RE.match(ln) for ln in lines)
+
+
+def classify_failure(status: str, lines: list[str], idx: int | None) -> int:
+    """Exit code for a wait that did not succeed: game-side problems are EXIT_ERROR, build/port EXIT_INFRA."""
+    if status == "timeout":
+        return EXIT_TIMEOUT
+    if status == "fatal" and idx is not None:
+        line = lines[idx]
+        if CRASH_CONSOLE_RE.search(line):
+            return EXIT_ERROR
+        if "FAILED TO BIND TO PORT" in line:
+            return EXIT_INFRA
+        return EXIT_ERROR if game_started(lines[:idx]) else EXIT_INFRA  # BUILD FAILED
+    return EXIT_ERROR if game_started(lines) else EXIT_INFRA  # exited without "Done ("
 
 
 # ------------------------------------------------------------ properties ---
@@ -122,14 +147,53 @@ def sweep_stale_server() -> None:
         pid_file.unlink(missing_ok=True)
         return
     if ks.pid_alive(pid):
-        cmdline = ks.process_command_line(pid)
-        if "java" in cmdline.lower() and ("fabric" in cmdline.lower() or str(ks.ROOT).lower() in cmdline.lower()):
+        cmd = ks.process_command_line(pid).lower()
+        ours = "fabric.dli.env=server" in cmd and str(ks.ROOT).lower() in cmd
+        started = ks.process_start_epoch(pid)
+        # The server writes server.pid after it starts; a process that started later reused the PID.
+        same_process = started is not None and started <= pid_file.stat().st_mtime + 5
+        if ours and same_process:
             log(f"killing stale dev server pid {pid}")
             ks.kill_tree(pid, force=True)
             time.sleep(2)
         else:
-            log(f"pid {pid} from server.pid belongs to another process; leaving it alone")
+            log(f"pid {pid} from server.pid is not our leftover server; leaving it alone")
     pid_file.unlink(missing_ok=True)
+
+
+class RunLock:
+    """One headless_test at a time: run-headless/ (server.properties, worlds, server.pid) is shared."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        self.fh = None
+
+    def __enter__(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.fh = open(self.path, "a+")
+        try:
+            if os.name == "nt":
+                import msvcrt
+                self.fh.seek(0)
+                msvcrt.locking(self.fh.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(self.fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            self.fh.close()
+            raise SystemExit("ERROR: another headless_test run is in progress (run-headless/.headless.lock)")
+        return self
+
+    def __exit__(self, *exc):
+        try:
+            if os.name == "nt":
+                import msvcrt
+                self.fh.seek(0)
+                msvcrt.locking(self.fh.fileno(), msvcrt.LK_UNLCK, 1)
+        except OSError:
+            pass
+        self.fh.close()
+        return False
 
 
 def port_free(port: int) -> bool:
@@ -147,15 +211,16 @@ class ServerProcess:
     def __init__(self, java_home: Path, console_log: Path, extra_gradle_args: list[str],
                  task: str = "runHeadlessServer"):
         args = [*ks.gradlew(), "--no-daemon", "--console=plain", *extra_gradle_args, task]
-        flags = 0
         if os.name == "nt":
-            flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+            platform_kw = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW}
+        else:
+            platform_kw = {"start_new_session": True}  # own process group, so kill_tree never hits us
         self.lines: list[str] = []
         self.cond = threading.Condition()
         self.console = open(console_log, "w", encoding="utf-8", newline="\n")
         self.proc = subprocess.Popen(args, cwd=ks.ROOT, env=ks.env_with_java(java_home),
                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                     creationflags=flags)
+                                     **platform_kw)
         self.reader = threading.Thread(target=self._read, daemon=True)
         self.reader.start()
 
@@ -192,12 +257,17 @@ class ServerProcess:
                     return "timeout", None
                 self.cond.wait(min(remaining, 1.0))
 
-    def send(self, command: str) -> int:
+    def send(self, command: str) -> int | None:
+        """Write a console command; returns the line index to search from, or None if the pipe is gone."""
         with self.cond:
             mark = len(self.lines)
         assert self.proc.stdin is not None
-        self.proc.stdin.write((command + "\n").encode("utf-8"))
-        self.proc.stdin.flush()
+        try:
+            self.proc.stdin.write((command + "\n").encode("utf-8"))
+            self.proc.stdin.flush()
+        except OSError:
+            log(f"> {command}  (not sent: server input closed)")
+            return None
         log(f"> {command}")
         return mark
 
@@ -239,8 +309,9 @@ def parse_log(text: str) -> list[dict]:
 
 _UUID_RE = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b")
 _HEX0X_RE = re.compile(r"\b0x[0-9a-fA-F]+\b")
+_IDHASH_RE = re.compile(r"(?<=@)[0-9a-fA-F]{1,8}\b")  # Object.toString() identity hashes, any length
 _HEX_RE = re.compile(r"\b(?=[0-9a-fA-F]*\d)[0-9a-fA-F]{8,}\b")
-_NUM_RE = re.compile(r"-?\d+(?:[.,]\d+)*")
+_NUM_RE = re.compile(r"(?<![A-Za-z_])-?\d+(?:[.,]\d+)*")  # keep digits inside identifiers (layer_1, v2)
 
 
 def normalize(text: str) -> str:
@@ -250,6 +321,7 @@ def normalize(text: str) -> str:
     out = out.replace(home, "<HOME>").replace(home.replace("\\", "/"), "<HOME>")
     out = _UUID_RE.sub("<UUID>", out)
     out = _HEX0X_RE.sub("<HEX>", out)
+    out = _IDHASH_RE.sub("<HEX>", out)
     out = _HEX_RE.sub("<HEX>", out)
     out = _NUM_RE.sub("#", out)
     return out.strip()
@@ -341,42 +413,64 @@ def run_once(profile_name: str, profile: dict, args, java_home: Path, out_dir: P
         ks.safe_rmtree(world, [RUN_DIR])
         log(f"deleted world {world.name}")
     crashes_before = crash_reports()
+    logs_dir = RUN_DIR / "logs"
+    gz_before = {p.name for p in logs_dir.glob("*.log.gz")} if logs_dir.is_dir() else set()
+    old_latest = logs_dir / "latest.log"
+    old_latest_mtime = old_latest.stat().st_mtime if old_latest.is_file() else None
+    # log4j rotates the previous latest.log into a .log.gz at startup (OnStartupTriggeringPolicy).
+    old_latest_text = old_latest.read_text(encoding="utf-8", errors="replace") if old_latest.is_file() else None
 
     t0 = time.monotonic()
     srv = ServerProcess(java_home, out_dir / "console.log", list(args.gradle_arg))
+    server_died = False
     try:
-        status, _ = srv.wait_for(DONE_RE, 0, args.timeout_start, FATAL_CONSOLE_RE)
+        status, idx = srv.wait_for(DONE_RE, 0, args.timeout_start, FATAL_CONSOLE_RE)
         result["timings"]["start_s"] = round(time.monotonic() - t0, 1)
         if status != "ok":
-            code = EXIT_TIMEOUT if status == "timeout" else EXIT_ERROR if status == "fatal" else EXIT_INFRA
-            result["codes"].append(code)
-            result["infra"] = f"server did not reach 'Done (' ({status})"
+            server_died = True
+            result["codes"].append(classify_failure(status, srv.lines, idx))
+            hit = srv.lines[idx] if idx is not None else ""
+            result["infra"] = f"server did not reach 'Done (' ({status}{': ' + hit if hit else ''})"
             log("ERROR: " + result["infra"])
-            srv.kill()
-            return result
-        log(f"server ready in {result['timings']['start_s']}s")
-        time.sleep(SETTLE_AFTER_DONE)
+        else:
+            log(f"server ready in {result['timings']['start_s']}s")
+            time.sleep(SETTLE_AFTER_DONE)
 
-        for cmd in profile.get("commands", []):
+        commands = [] if server_died else profile.get("commands", [])
+        for n, cmd in enumerate(commands):
             mark = srv.send(cmd["send"])
             t1 = time.monotonic()
-            st, idx = srv.wait_for(re.compile(cmd["expect"]), mark, float(cmd.get("timeout", 60)), FATAL_CONSOLE_RE)
+            if mark is None:
+                st, idx = "exited", None
+            else:
+                st, idx = srv.wait_for(re.compile(cmd["expect"]), mark, float(cmd.get("timeout", 60)),
+                                       FATAL_CONSOLE_RE)
             rec = {"send": cmd["send"], "expect": cmd["expect"], "status": st,
                    "seconds": round(time.monotonic() - t1, 1),
-                   "matched": srv.lines[idx] if st == "ok" and idx is not None else None}
+                   "matched": srv.lines[idx] if st in ("ok", "fatal") and idx is not None else None}
             result["commands"].append(rec)
-            if st != "ok":
-                log(f"ERROR: command {cmd['send']!r}: expected /{cmd['expect']}/ -> {st}")
-                result["codes"].append(EXIT_EXPECT if st == "timeout" else EXIT_ERROR)
-                if st != "timeout":
-                    break
-            else:
+            if st == "ok":
                 log(f"  ok ({rec['seconds']}s): {rec['matched']}")
+                continue
+            log(f"ERROR: command {cmd['send']!r}: expected /{cmd['expect']}/ -> {st}")
+            if st == "timeout":
+                result["codes"].append(EXIT_EXPECT)
+            else:
+                server_died = True
+                result["codes"].append(classify_failure(st, srv.lines, idx))
+            # Stop here: a late answer to this command must not be credited to the next one.
+            for rest in commands[n + 1:]:
+                result["commands"].append({"send": rest["send"], "expect": rest["expect"], "status": "skipped",
+                                           "seconds": 0.0, "matched": None})
+            break
 
-        if srv.proc.poll() is None:
+        if server_died or srv.proc.poll() is not None:
+            if not srv.wait_exit(30):
+                srv.kill()
+        else:
             mark = srv.send("stop")
             t2 = time.monotonic()
-            st, _ = srv.wait_for(STOPPED_RE, mark, 60)
+            st = "exited" if mark is None else srv.wait_for(STOPPED_RE, mark, 60)[0]
             exited = srv.wait_exit(STOP_TIMEOUT)
             result["timings"]["stop_s"] = round(time.monotonic() - t2, 1)
             if st != "ok" or not exited:
@@ -385,8 +479,8 @@ def run_once(profile_name: str, profile: dict, args, java_home: Path, out_dir: P
                 srv.kill()
         rc = srv.proc.returncode
         result["gradle_exit"] = rc
-        if rc not in (0, None) and EXIT_TIMEOUT not in result["codes"]:
-            result["codes"].append(EXIT_INFRA)
+        if rc not in (0, None) and not ({EXIT_TIMEOUT, EXIT_ERROR, EXIT_INFRA} & set(result["codes"])):
+            result["codes"].append(classify_failure("exited", srv.lines, None))
     except KeyboardInterrupt:
         srv.kill()
         raise
@@ -394,10 +488,22 @@ def run_once(profile_name: str, profile: dict, args, java_home: Path, out_dir: P
         srv.close()
         sweep_stale_server()
 
-    latest = RUN_DIR / "logs" / "latest.log"
-    latest_text = latest.read_text(encoding="utf-8", errors="replace") if latest.is_file() else ""
-    if latest.is_file():
+    # latest.log of THIS run, plus any part rolled over into a .log.gz at local midnight.
+    latest = logs_dir / "latest.log"
+    latest_text = ""
+    for gz in sorted(logs_dir.glob("*.log.gz")) if logs_dir.is_dir() else []:
+        if gz.name not in gz_before:
+            with gzip.open(gz, "rt", encoding="utf-8", errors="replace") as f:
+                part = f.read()
+            if part != old_latest_text:  # skip the previous run's log rotated at startup
+                latest_text += part
+                shutil.copyfile(gz, out_dir / gz.name)
+    if latest.is_file() and latest.stat().st_mtime != old_latest_mtime:
+        latest_text += latest.read_text(encoding="utf-8", errors="replace")
         shutil.copyfile(latest, out_dir / "latest.log")
+    elif game_started(srv.lines):
+        result["codes"].append(EXIT_INFRA)
+        result["infra"] = (result.get("infra", "") + "; run-headless/logs/latest.log was not written").lstrip("; ")
     new_crashes = sorted(crash_reports() - crashes_before)
     if new_crashes:
         result["codes"].append(EXIT_ERROR)
@@ -435,7 +541,8 @@ def update_baseline(path: Path, results: list[dict]) -> None:
     for r in results:
         keys |= set(r.get("analysis", {}).get("warn_counts", {}))
     header = ("# WARN baseline for tools/headless_test.py (normalized: numbers -> #, paths -> <ROOT>/<HOME>).\n"
-              "# Every line must be explained in the milestone report. Regenerate with --update-baseline.\n")
+              "# Every line must be explained in the milestone report. --update-baseline only ADDS lines from\n"
+              "# passing runs; to rebuild from scratch delete this file and run --update-baseline again.\n")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(header + "".join(k + "\n" for k in sorted(keys)), encoding="utf-8", newline="\n")
     log(f"baseline {path.relative_to(ks.ROOT)}: {len(existing)} -> {len(keys)} entries")
@@ -476,6 +583,8 @@ def main() -> int:
     ap.add_argument("--gradle-arg", action="append", default=[],
                     help="extra Gradle argument, e.g. --gradle-arg=--no-configuration-cache (repeatable)")
     args = ap.parse_args()
+    if args.repeat < 1:
+        ap.error("--repeat must be >= 1")
 
     profiles = tomllib.loads((HEADLESS_DIR / "profiles.toml").read_text(encoding="utf-8"))
     if args.profile not in profiles:
@@ -487,11 +596,12 @@ def main() -> int:
     stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     out_root = RESULTS_DIR / f"{stamp}-{args.profile}"
     results = []
-    for i in range(args.repeat):
-        out_dir = out_root / f"run{i + 1}" if args.repeat > 1 else out_root
-        log(f"run {i + 1}/{args.repeat}: profile {args.profile}, seed {profile['seed']}, "
-            f"level-type {profile['level_type']}{', fresh world' if args.fresh else ''}")
-        results.append(run_once(args.profile, profile, args, java_home, out_dir))
+    with RunLock(RUN_DIR / ".headless.lock"):
+        for i in range(args.repeat):
+            out_dir = out_root / f"run{i + 1}" if args.repeat > 1 else out_root
+            log(f"run {i + 1}/{args.repeat}: profile {args.profile}, seed {profile['seed']}, "
+                f"level-type {profile['level_type']}{', fresh world' if args.fresh else ''}")
+            results.append(run_once(args.profile, profile, args, java_home, out_dir))
 
     codes = {c for r in results for c in r["codes"]}
     if args.repeat > 1:
@@ -500,7 +610,11 @@ def main() -> int:
             codes.add(EXIT_NONDET)
             log("ERROR: collected files differ between runs")
     if args.update_baseline:
-        update_baseline(HEADLESS_DIR / "baselines" / f"{profile.get('baseline', args.profile)}.warn.txt", results)
+        if codes - {EXIT_OK, EXIT_WARN}:
+            log("ERROR: not updating the WARN baseline: the run failed for another reason")
+        else:
+            update_baseline(HEADLESS_DIR / "baselines" / f"{profile.get('baseline', args.profile)}.warn.txt",
+                            results)
     final = next((c for c in SEVERITY if c in codes), EXIT_OK)
 
     out_root.mkdir(parents=True, exist_ok=True)
