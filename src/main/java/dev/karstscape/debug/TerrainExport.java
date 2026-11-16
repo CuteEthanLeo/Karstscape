@@ -584,6 +584,25 @@ public final class TerrainExport {
 		o.add("nearest_neighbour_spacing", percentiles(spacing));
 		o.addProperty("wall_samples", wall);
 		o.addProperty("wall_fraction_ge_70deg", ratio(steep, wall));
+		// towers standing in or touching water (rivers must stay open)
+		int wet = 0;
+		for (int i = 0; i < size; i++) {
+			if (!tower[i]) continue;
+			int x = i % n, z = i / n;
+			int[] nb = {x > 0 ? i - 1 : -1, x + 1 < n ? i + 1 : -1, z > 0 ? i - n : -1, z + 1 < n ? i + n : -1};
+			for (int j : nb) {
+				if (j >= 0 && g.water(j) && g.mask()[j] >= 0.999f) {
+					wet++;
+					break;
+				}
+			}
+		}
+		o.addProperty("tower_samples_touching_water", wet);
+		List<Integer> depth = new ArrayList<>();
+		for (int i = 0; i < size; i++) {
+			if (g.water(i) && g.mask()[i] >= 0.999f) depth.add(g.surface()[i] - g.floor()[i]);
+		}
+		o.add("water_depth_in_core", percentiles(depth));
 		return o;
 	}
 

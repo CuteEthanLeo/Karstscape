@@ -145,3 +145,46 @@ collect = []
 send = "karstscape find"
 expect = 'Karstscape find'
 timeout = 600
+
+[[karstscape.commands]]
+send = "karstscape spawn"
+expect = 'Karstscape spawn: (OK|BAD)'
+timeout = 300
+
+[[karst_only.commands]]
+send = "karstscape spawn"
+expect = 'Karstscape spawn: (OK|BAD)'
+timeout = 300
+
+[[find.commands]]
+send = "karstscape spawn"
+expect = 'Karstscape spawn: (OK|BAD)'
+timeout = 300
+
+[structures]
+# karst_only: where do villages and mineshafts end up (villages must not be in the karst biome)
+seed = "20260915"
+level_type = "karstscape:karst_only"
+level_name = "ks_structures"
+baseline = "vanilla"
+collect = []
+
+[[structures.commands]]
+send = "karstscape spawn"
+expect = 'Karstscape spawn: (OK|BAD)'
+timeout = 300
+
+[[structures.commands]]
+send = "locate structure #minecraft:village"
+expect = 'The nearest #minecraft:village|Could not find'
+timeout = 600
+
+[[structures.commands]]
+send = "locate structure minecraft:mineshaft"
+expect = 'The nearest minecraft:mineshaft|Could not find'
+timeout = 600
+
+[[structures.commands]]
+send = "locate structure minecraft:trial_chambers"
+expect = 'The nearest minecraft:trial_chambers|Could not find'
+timeout = 600

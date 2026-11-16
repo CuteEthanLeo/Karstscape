@@ -179,6 +179,47 @@ public final class WorldChecks {
 
 	private static final int TOWER_Y = 92;
 
+	/**
+	 * World spawn safety: the spawn column, whether it stands on tower rock (y >= TOWER_Y) or inside
+	 * terrain, the highest terrain within 16 blocks and the biome. "OK" means on the ground, not on a tower.
+	 */
+	public static String spawnInfo(ServerLevel level) {
+		return probe(level, level.getRespawnData().globalPos().pos(), 16);
+	}
+
+	/**
+	 * Column check at a position: terrain top, highest terrain within `radius`, biome, block at pos.
+	 * BAD = standing inside terrain, or on tower rock (karst biome and terrain top >= TOWER_Y).
+	 */
+	public static String probe(ServerLevel level, BlockPos pos, int radius) {
+		LevelChunk chunk = level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
+		int top = terrainTop(chunk, pos.getX() & 15, pos.getZ() & 15, level.getMinY(), level.getMaxY());
+		int maxNear = Integer.MIN_VALUE;
+		int towersNear = 0;
+		for (int dz = -radius; dz <= radius; dz += 4) {
+			for (int dx = -radius; dx <= radius; dx += 4) {
+				int x = pos.getX() + dx, z = pos.getZ() + dz;
+				LevelChunk c = level.getChunk(x >> 4, z >> 4);
+				int t = terrainTop(c, x & 15, z & 15, level.getMinY(), level.getMaxY());
+				maxNear = Math.max(maxNear, t);
+				if (t >= TOWER_Y && isKarst(level, new BlockPos(x, t, z))) towersNear++;
+			}
+		}
+		BlockPos at = new BlockPos(pos.getX(), pos.getY() == 0 ? top + 1 : pos.getY(), pos.getZ());
+		BlockState state = level.getBlockState(at);
+		boolean inside = terrain(state);
+		boolean onTower = top >= TOWER_Y && isKarst(level, new BlockPos(pos.getX(), top, pos.getZ()));
+		String biome = level.getBiome(at).unwrapKey().map(k -> k.identifier().toString()).orElse("?");
+		return "%s pos %d %d %d terrain_top %d max_terrain_within_%d %d tower_samples_within_%d %d biome %s block %s"
+				.formatted(onTower || inside ? "BAD" : "OK", at.getX(), at.getY(), at.getZ(), top, radius, maxNear,
+						radius, towersNear, biome, name(state));
+	}
+
+	private static boolean isKarst(ServerLevel level, BlockPos pos) {
+		return level.getBiome(pos).unwrapKey().map(k -> k.identifier().toString().equals(TerrainExport.KARST_BIOME))
+				.orElse(false);
+	}
+
 	private static String name(BlockState s) {
 		return s.getBlock().builtInRegistryHolder().unwrapKey().map(k -> k.identifier().getPath()).orElse("?");
 	}

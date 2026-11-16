@@ -35,6 +35,19 @@ public final class KarstCommands {
 				.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
 				.then(Commands.literal("find")
 						.executes(ctx -> find(ctx.getSource())))
+				.then(Commands.literal("spawn")
+						.executes(ctx -> spawn(ctx.getSource())))
+				.then(Commands.literal("probe")
+						.then(Commands.argument("x", IntegerArgumentType.integer())
+								.then(Commands.argument("z", IntegerArgumentType.integer())
+										.executes(ctx -> {
+											var src = ctx.getSource();
+											String r = WorldChecks.probe(src.getLevel(), new net.minecraft.core.BlockPos(
+													IntegerArgumentType.getInteger(ctx, "x"), 0,
+													IntegerArgumentType.getInteger(ctx, "z")), 64);
+											src.sendSuccess(() -> Component.literal("Karstscape probe: " + r), false);
+											return 1;
+										}))))
 				.then(Commands.literal("check")
 						.then(Commands.argument("chunkRadius", IntegerArgumentType.integer(1, 32))
 								.then(Commands.argument("x", IntegerArgumentType.integer())
@@ -53,6 +66,12 @@ public final class KarstCommands {
 												.executes(ctx -> export(ctx, true, false))
 												.then(Commands.argument("step", IntegerArgumentType.integer(1, 4096))
 														.executes(ctx -> export(ctx, true, true))))))));
+	}
+
+	private static int spawn(CommandSourceStack source) {
+		String r = WorldChecks.spawnInfo(source.getLevel());
+		source.sendSuccess(() -> Component.literal("Karstscape spawn: " + r), false);
+		return 1;
 	}
 
 	private static int find(CommandSourceStack source) {
