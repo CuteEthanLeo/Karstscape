@@ -30,6 +30,8 @@
 - `tools/headless_test.py --profile vanilla --fresh`：无界面启动专用服务器（`gradlew runHeadlessServer`，目录 `run-headless/`），固定种子新建世界、执行命令、关服，检查 ERROR / 新增 WARN / 崩溃。profile 在 `tools/headless/profiles.toml`；WARN 基线 `tools/headless/baselines/`（`--update-baseline` 只从通过的运行合并），ERROR 白名单与 WARN 忽略表各有注释说明理由。同一时间只能跑一个（锁文件）。结果在 `build/headless/`（`gradlew clean` 会清掉）。退出码：0 通过 / 1 构建或环境 / 2 超时 / 3 ERROR 或崩溃 / 4 新增或刷屏 WARN / 5 命令无预期输出 / 6 `--repeat` 结果不一致。
 - `tools/client_smoke.py`：限时启动 `gradlew runSmokeClient`（目录 `run-client-smoke/`），确认资源加载完成后发关闭消息正常退出。
 - 单元测试：`python -m unittest discover -s tools/tests`。
+- `tools/gen_worldgen.py`：从 **唯一参数源** `tools/worldgen/karst_params.toml` 和原版导出生成全部世界生成 JSON（群系、遮罩与地形函数、noise_settings、两个世界预设、预设标签、语言文件）。`src/main/resources/data/karstscape/worldgen/` 下的文件**只能由它生成，不要手改**；`--check` 检查是否过期（headless_test 每次运行前自动检查）。
+- 游戏内 `/karstscape export <半径> [x z [步长]]`（OP 2）：不生成区块，直接采样地形，输出 `karstscape_export/<维度>_seed<种子>_x_z_r_s/` 下的 height/biome/slope/mask.png 和 stats.json。headless profile：`karstscape`、`karst_only`、`tune`（只做 24 km 导出，配合 `--seed=<种子>` 调参）。
 - 注意：26.3 专用服务器在 `Done (` 之前收到的控制台命令都会失败（命令源在读入时创建，世界还不存在）；未知 `level-type` 只记 WARN 并回落到 `minecraft:normal`。
 
 ## Windows 注意
