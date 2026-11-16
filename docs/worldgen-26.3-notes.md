@@ -90,4 +90,4 @@
 
 ## 8. 26.3 Java API（反编译源码）
 
-见下一节（genSources 之后补充）。
+见 [26.3-worldgen-java-api.md](26.3-worldgen-java-api.md)：自定义密度函数的写法与注册、种子绑定（`CompileContext.createRandom`）、插值外逐方块求值、2D 自动按列缓存、气候参数与 router 的对应、`level-type`、命令权限、注册表同步。
