@@ -54,3 +54,17 @@ jar {
 		rename { "${it}_$projectName" }
 	}
 }
+
+loom {
+	runs {
+		// Dedicated server for tools/headless_test.py: separate run dir, pid file, no IDE config.
+		headlessServer {
+			server()
+			displayName = "Headless Server"
+			runDirectory = file("run-headless")
+			programArguments.addAll("--pidFile", "server.pid")
+			jvmArguments.add("-Xmx4G")
+			generateRunConfig = false
+		}
+	}
+}
