@@ -75,3 +75,23 @@ loom {
 		}
 	}
 }
+
+// Production check: the release jar + the released Fabric API on the real Fabric server launcher
+// (`gradlew prodServer`, run dir run-prod/). Not part of the normal build.
+configurations {
+	prodMods {
+		transitive = false
+	}
+}
+
+dependencies {
+	prodMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+tasks.register("prodServer", net.fabricmc.loom.task.prod.ServerProductionRunTask) {
+	installerVersion = "1.1.2"
+	mods.from(tasks.named("jar"))
+	mods.from(configurations.prodMods)
+	runDir = file("run-prod")
+	programArgs.add("nogui")
+}

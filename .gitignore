@@ -45,6 +45,8 @@ replay_*.log
 /reference/
 # Headless dev-server run directory used by tools/headless_test.py
 /run-headless/
+# Production server check (gradlew prodServer)
+/run-prod/
 # Client run directory used by tools/client_smoke.py
 /run-client-smoke/
 # Downloaded server jars, datagen scratch dirs
