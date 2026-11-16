@@ -66,5 +66,12 @@ loom {
 			jvmArguments.add("-Xmx4G")
 			generateRunConfig = false
 		}
+		// Client for tools/client_smoke.py: own run dir so its logs never mix with manual runClient/runServer.
+		smokeClient {
+			client()
+			displayName = "Smoke Client"
+			runDirectory = file("run-client-smoke")
+			generateRunConfig = false
+		}
 	}
 }

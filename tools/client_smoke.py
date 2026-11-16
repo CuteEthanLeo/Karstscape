@@ -2,7 +2,7 @@
 
   python tools/client_smoke.py
 
-Starts `gradlew runClient`, waits for these log markers in order, then closes the game:
+Starts `gradlew runSmokeClient` (a client run config with its own run dir, run-client-smoke/), waits for these log markers in order, then closes the game:
   1. Fabric Loader loads Minecraft 26.3
   2. karstscape is in the mod list
   3. "Karstscape initialized"
@@ -11,7 +11,7 @@ Starts `gradlew runClient`, waits for these log markers in order, then closes th
 After the last marker it waits SETTLE seconds for crashes, then asks the window to close (taskkill without /F or /T,
 which the game handles as a normal quit; "Stopping!" is expected), forcing only if that fails.
 
-ERROR/WARN lines from run/logs/latest.log are listed but do not fail the check: an offline dev client
+ERROR/WARN lines from run-client-smoke/logs/latest.log are listed but do not fail the check: an offline dev client
 logs expected profile/Realms/telemetry errors. Result: build/client-smoke/<UTC time>/ (exit 0 = pass).
 """
 from __future__ import annotations
@@ -28,11 +28,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import headless_test as ht  # noqa: E402
 import ks_common as ks  # noqa: E402
 
-RUN_DIR = ks.ROOT / "run"
+RUN_DIR = ks.ROOT / "run-client-smoke"
 TIMEOUT = 900
 SETTLE = 20
+_PROPS = ks.read_gradle_properties()
 MARKERS = [
-    ("loader", re.compile(r"Loading Minecraft 26\.3 with Fabric Loader 0\.20\.1")),
+    ("loader", re.compile(rf"Loading Minecraft {re.escape(_PROPS['minecraft_version'])} "
+                          rf"with Fabric Loader {re.escape(_PROPS['loader_version'])}\b")),
     ("modlist", re.compile(r"^\s*- karstscape \S+")),
     ("karstscape", re.compile(r"Karstscape initialized")),
     ("renderer", re.compile(r"Backend library: ")),
@@ -54,7 +56,8 @@ def main() -> int:
 
     result = {"markers": {}, "pass": False}
     t0 = time.monotonic()
-    game = ht.ServerProcess(java_home, out / "console.log", [], task="runClient")
+    wall_start = time.time()
+    game = ht.ServerProcess(java_home, out / "console.log", [], task="runSmokeClient")
     try:
         idx = 0
         for name, pat in MARKERS:
@@ -79,7 +82,7 @@ def main() -> int:
         if game.proc.poll() is None:
             # Ask only the game JVM (not cmd/Gradle) to close its window: taskkill without /F sends
             # WM_CLOSE, which Minecraft treats like clicking the window's close button.
-            game_pids = ks.find_java_pids("-Dfabric.dli.env=client", str(ks.ROOT))
+            game_pids = ks.find_descendant_java_pids(game.proc.pid, "-Dfabric.dli.env=client")
             log(f"closing the game window (normal quit), game pid(s) {game_pids}")
             for pid in game_pids:
                 ks.request_close(pid)
@@ -91,7 +94,7 @@ def main() -> int:
         game.close()
 
     latest = RUN_DIR / "logs" / "latest.log"
-    if latest.is_file():
+    if "loader" in result["markers"] and latest.is_file() and latest.stat().st_mtime >= wall_start:
         shutil.copyfile(latest, out / "latest.log")
         entries = ht.parse_log(latest.read_text(encoding="utf-8", errors="replace"))
         result["errors"] = [ht.entry_key(e) for e in entries if e["level"] in ("ERROR", "FATAL")]
