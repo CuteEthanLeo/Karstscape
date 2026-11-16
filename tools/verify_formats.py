@@ -32,6 +32,8 @@ UNARY_DF = ["abs", "square", "cube", "half_negative", "quarter_negative", "squee
             "blend_density", "sqrt", "log", "sign", "reciprocal"]
 EXPECTED_ROUTER = {"chunk_surface_level", "continents", "depth", "erosion", "final_density",
                    "ridges", "temperature", "vegetation"}
+EXPECTED_AQUIFERS = {"barrier", "exclusion", "fluid_level_floodedness", "fluid_level_spread", "lava",
+                     "surface_level"}
 
 
 def rel(p: Path) -> str:
@@ -216,9 +218,13 @@ def claim_c3():
         ok &= router == EXPECTED_ROUTER
         ok &= "aquifers_enabled" not in ns and not (router & {"barrier", "fluid_level_floodedness", "fluid_level_spread", "lava"})
         rows.append(f"{p.stem}: aquifers={'有 ' + keys_str(aq.keys()) if isinstance(aq, dict) else '无'}")
-    ev.append(f"7 个 `noise_settings` 的 `noise_router` 键集合都等于 {keys_str(EXPECTED_ROUTER)}：{ok}")
+    n_ns = len(files(NEW, "noise_settings"))
+    ev.append(f"{n_ns} 个 `noise_settings` 的 `noise_router` 键集合都等于 {keys_str(EXPECTED_ROUTER)}：{ok}")
     ev.append("各文件 `aquifers`：" + "；".join(rows))
     ow = load(NEW / WG / "noise_settings" / "overworld.json")
+    aq_ok = isinstance(ow.get("aquifers"), dict) and set(ow["aquifers"]) == EXPECTED_AQUIFERS
+    ok &= aq_ok
+    ev.append(f"overworld 的 `aquifers` 键集合等于 {keys_str(EXPECTED_AQUIFERS)}：{aq_ok}")
     ev.append(f"overworld 顶层键：{keys_str(ow.keys())}")
     ev.append(f"overworld `noise` = {code(json.dumps(ow['noise'], sort_keys=True))}（`size_horizontal`/`size_vertical` 已无，cell 尺寸改在 `interpolated` 上）")
     ev.append(f"overworld `aquifers.surface_level` = {code(ow['aquifers'].get('surface_level'))}")
@@ -357,8 +363,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sources", type=Path, help="Minecraft 26.3 sources jar or directory (genSources)")
     args = ap.parse_args()
-    if not (NEW / "MANIFEST.json").is_file():
-        print("ERROR: reference/vanilla-26.3 missing; run python tools/export_vanilla_data.py", file=sys.stderr)
+    import export_vanilla_data as ev  # same folder; checks completeness, jar sha1 and tree hash
+    if not ev.manifest_is_current(NEW, ks.SERVER_JARS[ev.VERSION]["sha1"]):
+        print("ERROR: reference/vanilla-26.3 is missing, incomplete, stale or modified "
+              "(manifest / jar sha1 / tree hash mismatch); run python tools/export_vanilla_data.py --force",
+              file=sys.stderr)
         return 2
 
     c1, c2, c3 = claim_c1(), claim_c2(), claim_c3()
@@ -372,9 +381,11 @@ def main() -> int:
           f"- 命令：`{manifest['command']}`",
           f"- 服务器 jar sha1：`{manifest['jar_sha1']}`",
           f"- 导出文件 {manifest['file_count']} 个，其中 worldgen {manifest['worldgen_total']} 个；"
-          f"与 jar 内置数据逐文件对比：相同 {manifest['comparison_with_jar']['identical']}，"
-          f"不同 {manifest['comparison_with_jar']['different']}",
-          f"- 导出树哈希：`{manifest['tree_sha256']}`",
+          f"与 jar 内置 JSON 逐文件对比：相同 {manifest['comparison_with_jar']['identical']}，"
+          f"不同 {manifest['comparison_with_jar']['different']}，"
+          f"仅 jar 有 {manifest['comparison_with_jar']['only_in_jar']}，"
+          f"仅导出有 {manifest['comparison_with_jar']['only_in_datagen']}",
+          f"- 导出树哈希（运行前已重算核对）：`{manifest['tree_sha256']}`",
           f"- 1.21.11 对照：{'有（`vanilla-1.21.11-shipped/`，从 jar 内直接解出）' if OLD.is_dir() else '无'}",
           "", "数据生成器 `--help`：", "", "```", manifest["datagen_help"], "```", "",
           "## SPEC §2.1 的说法逐条核实", "",

@@ -30,7 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ks_common as ks  # noqa: E402
 
-TOOL_SCHEMA = 1
+TOOL_SCHEMA = 2
 VERSION = "26.3"
 DATAGEN_ARGS = ["--server", "--reports"]
 DATAGEN_TIMEOUT_S = 900
@@ -148,13 +148,18 @@ def worldgen_counts(data_dir: Path) -> dict[str, int]:
 
 # ---------------------------------------------------------------- main ----
 
-def manifest_is_current(out_dir: Path, jar_sha1: str) -> bool:
-    mf = out_dir / "MANIFEST.json"
-    if not mf.is_file():
-        return False
+def read_manifest(out_dir: Path) -> dict | None:
     try:
-        m = json.loads(mf.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+        m = json.loads((out_dir / "MANIFEST.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return m if isinstance(m, dict) else None
+
+
+def manifest_is_current(out_dir: Path, jar_sha1: str) -> bool:
+    """True only for a complete export made by this tool version from this jar, unmodified since."""
+    m = read_manifest(out_dir)
+    if m is None or not m.get("complete"):
         return False
     if m.get("tool_schema") != TOOL_SCHEMA or m.get("jar_sha1") != jar_sha1 or m.get("datagen_args") != DATAGEN_ARGS:
         return False
@@ -162,13 +167,32 @@ def manifest_is_current(out_dir: Path, jar_sha1: str) -> bool:
     return th == m.get("tree_sha256")
 
 
+def check_complete(tmp: Path, datagen_log: Path, comparison: dict) -> list[str]:
+    """The data generator exits 0 even when providers fail, so check its output explicitly."""
+    problems = []
+    log_text = datagen_log.read_text(encoding="utf-8", errors="replace") if datagen_log.is_file() else ""
+    if "All providers took" not in log_text:
+        problems.append("datagen.log lacks 'All providers took' (generator did not finish)")
+    for bad in ("Failed to save file", "Exception in thread", "Caught exception", "/ERROR]"):
+        if bad in log_text:
+            problems.append(f"datagen.log contains {bad!r}")
+    if comparison["only_in_jar"] or comparison["different"]:
+        problems.append(f"datagen output differs from the jar's own data: only-in-jar "
+                        f"{comparison['only_in_jar']}, different {comparison['different']}")
+    for required in ("reports/registries.json", "reports/biome_parameters/minecraft/overworld.json",
+                     "data/minecraft/worldgen/noise_settings/overworld.json"):
+        if not (tmp / required).is_file():
+            problems.append(f"missing {required}")
+    return problems
+
+
 def export_26_3(force: bool) -> Path:
     out_dir = ks.REFERENCE_DIR / f"vanilla-{VERSION}"
-    jar = ensure_server_jar(VERSION)
     jar_sha1 = ks.SERVER_JARS[VERSION]["sha1"]
     if not force and manifest_is_current(out_dir, jar_sha1):
         log(f"up to date: {out_dir} (use --force to re-export)")
         return out_dir
+    jar = ensure_server_jar(VERSION)
 
     java_home = ks.find_java_home(ks.SERVER_JARS[VERSION]["java"])
     java = ks.java_exe(java_home)
@@ -202,10 +226,16 @@ def export_26_3(force: bool) -> Path:
     with zipfile.ZipFile(jar) as bundler, inner_server_jar(bundler, VERSION) as inner:
         (tmp / "version.json").write_bytes(inner.read("version.json"))
         comparison = compare_with_jar(tmp, inner)
+    problems = check_complete(tmp, datagen_log, comparison)
+    if problems:
+        ks.safe_rmtree(tmp, [ks.REFERENCE_DIR])
+        raise SystemExit("ERROR: incomplete data generator output, reference/ left unchanged:\n  - "
+                         + "\n  - ".join(problems) + f"\n(see {datagen_log})")
 
     th, nfiles = ks.tree_hash(tmp, exclude=("MANIFEST.json",))
     manifest = {
         "tool_schema": TOOL_SCHEMA,
+        "complete": True,
         "minecraft_version": VERSION,
         "jar_url": ks.SERVER_JARS[VERSION]["url"],
         "jar_sha1": jar_sha1,
@@ -222,8 +252,7 @@ def export_26_3(force: bool) -> Path:
     }
     (tmp / "MANIFEST.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
-    ks.safe_rmtree(out_dir, [ks.REFERENCE_DIR])
-    tmp.rename(out_dir)
+    ks.replace_dir(tmp, out_dir, [ks.REFERENCE_DIR])
     log(f"wrote {out_dir} ({nfiles} files, worldgen {manifest['worldgen_total']})")
     log(f"worldgen per registry: {manifest['worldgen_counts']}")
     c = comparison
@@ -233,20 +262,31 @@ def export_26_3(force: bool) -> Path:
     return out_dir
 
 
-def extract_baseline(version: str) -> Path:
+BASELINE_PREFIXES = ("data/minecraft/worldgen/", "data/minecraft/tags/worldgen/",
+                     "data/minecraft/dimension/", "data/minecraft/dimension_type/")
+
+
+def baseline_is_current(out_dir: Path, sha1: str) -> bool:
+    m = read_manifest(out_dir)
+    if m is None or m.get("tool_schema") != TOOL_SCHEMA or m.get("jar_sha1") != sha1 \
+            or m.get("prefixes") != list(BASELINE_PREFIXES):
+        return False
+    th, _ = ks.tree_hash(out_dir, exclude=("MANIFEST.json",))
+    return th == m.get("tree_sha256")
+
+
+def extract_baseline(version: str, force: bool) -> Path:
     """Extract worldgen JSON shipped inside an older server jar (no datagen run)."""
     out_dir = ks.REFERENCE_DIR / f"vanilla-{version}-shipped"
-    jar = ensure_server_jar(version)
     sha1 = ks.SERVER_JARS[version]["sha1"]
-    mf = out_dir / "MANIFEST.json"
-    if mf.is_file() and json.loads(mf.read_text(encoding="utf-8")).get("jar_sha1") == sha1:
+    if not force and baseline_is_current(out_dir, sha1):
         log(f"up to date: {out_dir}")
         return out_dir
+    jar = ensure_server_jar(version)
     tmp = ks.REFERENCE_DIR / f"vanilla-{version}-shipped.tmp"
     ks.safe_rmtree(tmp, [ks.REFERENCE_DIR])
     tmp.mkdir(parents=True)
-    prefixes = ("data/minecraft/worldgen/", "data/minecraft/tags/worldgen/",
-                "data/minecraft/dimension/", "data/minecraft/dimension_type/")
+    prefixes = BASELINE_PREFIXES
     n = 0
     with zipfile.ZipFile(jar) as bundler, inner_server_jar(bundler, version) as inner:
         for name in inner.namelist():
@@ -256,8 +296,12 @@ def extract_baseline(version: str) -> Path:
                 target.write_bytes(inner.read(name))
                 n += 1
         (tmp / "version.json").write_bytes(inner.read("version.json"))
+    th, _ = ks.tree_hash(tmp)
     manifest = {
+        "tool_schema": TOOL_SCHEMA,
         "kind": "shipped (extracted from server jar, NOT datagen output)",
+        "prefixes": list(BASELINE_PREFIXES),
+        "tree_sha256": th,
         "minecraft_version": version,
         "jar_url": ks.SERVER_JARS[version]["url"],
         "jar_sha1": sha1,
@@ -265,8 +309,7 @@ def extract_baseline(version: str) -> Path:
         "worldgen_counts": worldgen_counts(tmp / "data"),
     }
     (tmp / "MANIFEST.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    ks.safe_rmtree(out_dir, [ks.REFERENCE_DIR])
-    tmp.rename(out_dir)
+    ks.replace_dir(tmp, out_dir, [ks.REFERENCE_DIR])
     log(f"wrote {out_dir} ({n} files)")
     return out_dir
 
@@ -281,7 +324,7 @@ def main() -> int:
     ks.REFERENCE_DIR.mkdir(exist_ok=True)
     export_26_3(args.force)
     if args.baseline:
-        extract_baseline(args.baseline)
+        extract_baseline(args.baseline, args.force)
     return 0
 
 
