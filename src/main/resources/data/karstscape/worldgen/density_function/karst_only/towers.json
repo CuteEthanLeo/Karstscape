@@ -1,6 +1,6 @@
 {
   "type": "karstscape:tower_field",
-  "mask": "karstscape:karst_only/mask",
+  "mask": "karstscape:karst_only/tower_mask",
   "cell_size": 58,
   "probability": 0.93,
   "mask_min": 0.25,

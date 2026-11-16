@@ -165,16 +165,36 @@ def y_to_offset(y: float) -> float:
     return (y + 64.0) / 128.0 - 1.5
 
 
-def shaper_functions(preset: str, plain: dict) -> dict[str, dict]:
+RIDGES = "minecraft:overworld/ridges"
+
+
+def abs_ridges_ramp(start: float, width: float) -> dict:
+    """0 where |ridges| <= start, rising linearly to 1 at start + width."""
+    return df_clamp01(df_mul(df_add({"type": "minecraft:abs", "input": RIDGES}, -start), 1.0 / width))
+
+
+def shaper_functions(preset: str, plain: dict, river: dict) -> dict[str, dict]:
     mask = f"{NS}:{preset}/mask"
-    cap = df_add(y_to_offset(plain["cap_y"]),
+    cap_y_off = y_to_offset(plain["cap_y"])
+    cap = df_add(cap_y_off,
                  df_mul({"type": "minecraft:noise", "noise": plain["cap_noise"],
                          "xz_scale": plain["cap_noise_xz_scale"], "y_scale": 0.0},
                         plain["cap_noise_blocks"] / 128.0))
+    # river channel: bed_y in the corridor centre, rising to just above the plain over the bank width
+    bed = y_to_offset(river["bed_y"])
+    above_plain = cap_y_off + (plain["cap_noise_blocks"] + 4) / 128.0
+    channel = df_add(bed, df_mul(abs_ridges_ramp(river["center"], river["bank"]), above_plain - bed))
+    lowered = {"type": "minecraft:min",
+               "left": {"type": "minecraft:min", "left": "minecraft:overworld/offset", "right": cap},
+               "right": channel}
+    # shallow: inside the corridor the bed is never below bed_y (vanilla river beds are deeper);
+    # outside the corridor the floor drops away and has no effect (lakes keep their depth)
+    floor = df_add(bed, df_mul(abs_ridges_ramp(river["center"] + river["bank"], 0.02), -4.0))
+    plain_terrain = {"type": "minecraft:max", "left": lowered, "right": floor}
     return {
         "offset": {"type": "minecraft:cache", "input": {
             "type": "minecraft:lerp", "alpha": mask, "first": "minecraft:overworld/offset",
-            "second": {"type": "minecraft:min", "left": "minecraft:overworld/offset", "right": cap}}},
+            "second": plain_terrain}},
         "factor": {"type": "minecraft:cache", "input": {
             "type": "minecraft:lerp", "alpha": mask, "first": "minecraft:overworld/factor",
             "second": {"type": "minecraft:max", "left": "minecraft:overworld/factor",
@@ -182,6 +202,29 @@ def shaper_functions(preset: str, plain: dict) -> dict[str, dict]:
         "jaggedness": {"type": "minecraft:cache", "input": {
             "type": "minecraft:lerp", "alpha": mask, "first": "minecraft:overworld/jaggedness", "second": 0.0}},
     }
+
+
+SPAWN_KEYS = {"temperature": "minecraft:overworld/temperature", "humidity": "minecraft:overworld/vegetation",
+              "continentalness": "minecraft:overworld/continents", "erosion": "minecraft:overworld/erosion",
+              "weirdness": "minecraft:overworld/ridges"}
+
+
+def spawn_target(vanilla: list[dict], box: dict, preset: str, spawn: dict) -> list[dict]:
+    """Spawn search ranges that keep the world spawn off karst towers."""
+    if preset == "karst_only":
+        lo, hi = spawn["karst_only_continentalness"]
+        out = []
+        for e in vanilla:
+            e = dict(e)
+            e[SPAWN_KEYS["continentalness"]] = [float(lo), float(hi)]
+            out.append(e)
+        return out
+    out = []
+    for e in vanilla:
+        params = {p: e.get(SPAWN_KEYS[p], [-LIMIT, LIMIT]) for p in CLIMATE}
+        for piece in carve(params, box):
+            out.append({SPAWN_KEYS[p]: [float(piece[p][0]), float(piece[p][1])] for p in CLIMATE})
+    return out
 
 
 def dependents_of_shapers() -> list[str]:
@@ -252,9 +295,20 @@ def band_rule(m: dict) -> dict:
     pool += [blocks[0]] * (len(starts) - len(pool))
     rnd.shuffle(pool)
     bands = list(zip(starts, pool[:len(starts)]))
-    seq = [cond(y_above(y0), blk(b)) for y0, b in reversed(bands)]
-    seq.append(blk("minecraft:stone"))
-    return {"type": "minecraft:sequence", "sequence": seq}
+
+    # balanced binary tree of y_above tests: ~log2(n) checks per block instead of up to n
+    def tree(lo: int, hi: int, below):
+        """bands[lo:hi]; `below` is the rule for y under bands[lo]."""
+        if lo >= hi:
+            return below
+        if hi - lo == 1:
+            return {"type": "minecraft:sequence", "sequence": [cond(y_above(bands[lo][0]), blk(bands[lo][1])), below]}
+        mid = (lo + hi) // 2
+        return {"type": "minecraft:sequence", "sequence": [
+            cond(y_above(bands[mid][0]), tree(mid, hi, blk(bands[mid][1]))),
+            tree(lo, mid, below)]}
+
+    return tree(0, len(bands), blk("minecraft:stone"))
 
 
 def karst_surface_rule(m: dict) -> dict:
@@ -270,7 +324,8 @@ def karst_surface_rule(m: dict) -> dict:
             cond(STEEP, bands),
             blk("minecraft:dirt"),
         ]}),
-        cond(noise_above(moss, m["moss_wall_threshold"], is_3d=True), blk("minecraft:moss_block")),
+        # 2D noise (evaluated once per column, not per block): vertical moss streaks down the walls
+        cond(noise_above(moss, m["moss_wall_threshold"]), blk("minecraft:moss_block")),
         bands,
     ]}
     rb = m["riverbed_noise"]
@@ -414,9 +469,12 @@ def build(params: dict) -> dict[Path, str]:
 
         dfdir = OUT_WG / "density_function" / preset
         files[dfdir / "mask.json"] = dumps(mask_function(box, edge))
-        for name, fn in shaper_functions(preset, plain).items():
+        for name, fn in shaper_functions(preset, plain, params["river"]).items():
             files[dfdir / f"{name}.json"] = dumps(fn)
-        towers = {"type": f"{NS}:tower_field", "mask": f"{NS}:{preset}/mask"}
+        rv = params["river"]
+        files[dfdir / "tower_mask.json"] = dumps({"type": "minecraft:cache", "input": df_mul(
+            f"{NS}:{preset}/mask", abs_ridges_ramp(rv["tower_clear"], rv["tower_clear_ramp"]))})
+        towers = {"type": f"{NS}:tower_field", "mask": f"{NS}:{preset}/tower_mask"}
         towers.update(params["towers"])
         files[dfdir / "towers.json"] = dumps(towers)
         for d in deps:
@@ -429,6 +487,7 @@ def build(params: dict) -> dict[Path, str]:
         ns = load(VWG / "noise_settings" / "overworld.json")
         ns = rewrite_refs(ns, mapping)
         ns["material_rule"] = f"{NS}:overworld"  # vanilla overworld rule + karst surface first in tower_karst
+        ns["spawn_target"] = spawn_target(ns["spawn_target"], box, preset, params["spawn"])
         files[OUT_WG / "noise_settings" / f"{preset}.json"] = dumps(ns)
 
         wp = load(VWG / "world_preset" / "normal.json")
@@ -441,6 +500,11 @@ def build(params: dict) -> dict[Path, str]:
         lang_en[f"generator.{NS}.{preset}"] = cfg["display_en"]
         lang_zh[f"generator.{NS}.{preset}"] = cfg["display_zh"]
 
+    # structures: only underground ones in the karst biome (surface ones would land on towers, and the
+    # beardifier would carve their footprint into tower walls)
+    for tag in params["structures"]["allow"]:
+        files[RES / "data" / "minecraft" / "tags" / "worldgen" / "biome" / f"{tag}.json"] = \
+            dumps({"replace": False, "values": [BIOME_ID]})
     files[RES / "data" / "minecraft" / "tags" / "worldgen" / "world_preset" / "normal.json"] = \
         dumps({"replace": False, "values": normal_tag})
     files[RES / "assets" / NS / "lang" / "en_us.json"] = dumps(lang_en)

@@ -121,6 +121,14 @@
   "sea_level": 63,
   "spawn_target": [
     {
+      "minecraft:overworld/temperature": [
+        -1.0,
+        0.2
+      ],
+      "minecraft:overworld/vegetation": [
+        -1.0,
+        1.0
+      ],
       "minecraft:overworld/continents": [
         -0.11,
         1.0
@@ -132,17 +140,83 @@
       "minecraft:overworld/ridges": [
         -1.0,
         -0.16
-      ],
+      ]
+    },
+    {
       "minecraft:overworld/temperature": [
-        -1.0,
+        0.55,
         1.0
       ],
       "minecraft:overworld/vegetation": [
         -1.0,
         1.0
+      ],
+      "minecraft:overworld/continents": [
+        -0.11,
+        1.0
+      ],
+      "minecraft:overworld/erosion": [
+        -1.0,
+        1.0
+      ],
+      "minecraft:overworld/ridges": [
+        -1.0,
+        -0.16
       ]
     },
     {
+      "minecraft:overworld/temperature": [
+        0.2,
+        0.55
+      ],
+      "minecraft:overworld/vegetation": [
+        -1.0,
+        1.0
+      ],
+      "minecraft:overworld/continents": [
+        -0.11,
+        0.18
+      ],
+      "minecraft:overworld/erosion": [
+        -1.0,
+        1.0
+      ],
+      "minecraft:overworld/ridges": [
+        -1.0,
+        -0.16
+      ]
+    },
+    {
+      "minecraft:overworld/temperature": [
+        0.2,
+        0.55
+      ],
+      "minecraft:overworld/vegetation": [
+        -1.0,
+        1.0
+      ],
+      "minecraft:overworld/continents": [
+        0.18,
+        1.0
+      ],
+      "minecraft:overworld/erosion": [
+        -1.0,
+        -0.2225
+      ],
+      "minecraft:overworld/ridges": [
+        -1.0,
+        -0.16
+      ]
+    },
+    {
+      "minecraft:overworld/temperature": [
+        -1.0,
+        0.2
+      ],
+      "minecraft:overworld/vegetation": [
+        -1.0,
+        1.0
+      ],
       "minecraft:overworld/continents": [
         -0.11,
         1.0
@@ -154,13 +228,71 @@
       "minecraft:overworld/ridges": [
         0.16,
         1.0
-      ],
+      ]
+    },
+    {
       "minecraft:overworld/temperature": [
-        -1.0,
+        0.55,
         1.0
       ],
       "minecraft:overworld/vegetation": [
         -1.0,
+        1.0
+      ],
+      "minecraft:overworld/continents": [
+        -0.11,
+        1.0
+      ],
+      "minecraft:overworld/erosion": [
+        -1.0,
+        1.0
+      ],
+      "minecraft:overworld/ridges": [
+        0.16,
+        1.0
+      ]
+    },
+    {
+      "minecraft:overworld/temperature": [
+        0.2,
+        0.55
+      ],
+      "minecraft:overworld/vegetation": [
+        -1.0,
+        1.0
+      ],
+      "minecraft:overworld/continents": [
+        -0.11,
+        0.18
+      ],
+      "minecraft:overworld/erosion": [
+        -1.0,
+        1.0
+      ],
+      "minecraft:overworld/ridges": [
+        0.16,
+        1.0
+      ]
+    },
+    {
+      "minecraft:overworld/temperature": [
+        0.2,
+        0.55
+      ],
+      "minecraft:overworld/vegetation": [
+        -1.0,
+        1.0
+      ],
+      "minecraft:overworld/continents": [
+        0.18,
+        1.0
+      ],
+      "minecraft:overworld/erosion": [
+        -1.0,
+        -0.2225
+      ],
+      "minecraft:overworld/ridges": [
+        0.16,
         1.0
       ]
     }

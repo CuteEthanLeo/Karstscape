@@ -36,7 +36,7 @@ display_en = "Karst Only (debug)"
 display_zh = "全峰林（调试）"
 temperature = [-1.0, 1.0]
 humidity = [-1.0, 1.0]
-continentalness = [-0.11, 1.0]   # everything that is not ocean
+continentalness = [-0.19, 1.0]   # all land incl. the coast (no non-karst coastal strip for villages)
 erosion = [-1.0, 1.0]
 weirdness = [-1.0, 1.0]
 edge = 0.05
@@ -50,6 +50,28 @@ cap_noise_blocks = 4       # ± gentle undulation of the plain top
 cap_noise = "minecraft:surface"
 cap_noise_xz_scale = 1.0
 min_factor = 6.0           # terrain "factor" floor inside the mask (higher = flatter, less 3D noise)
+
+# ------------------------------------------------------------------ river --
+# Vanilla rivers follow weirdness ("ridges") ~ 0. Inside the karst mask they become a wide, shallow,
+# boatable channel and towers keep out of the corridor, so a river is never cut into dead-end ponds.
+[river]
+center = 0.03            # |ridges| below this: channel bed at bed_y (water = sea level 63)
+bank = 0.05              # |ridges| from center to center+bank: bed rises to the plain (gentle banks)
+bed_y = 58               # channel bed target y -> ~3 blocks of water (actual bed lands ~1 block higher)
+tower_clear = 0.12       # no tower centres where |ridges| < tower_clear ...
+tower_clear_ramp = 0.04  # ... full tower density from tower_clear + ramp
+
+# ------------------------------------------------------------------ spawn --
+[spawn]
+# karstscape preset: the spawn search avoids the karst box (vanilla spawn ranges minus the box).
+# karst_only: everything is karst, so spawn in the tower-free coastal strip of land.
+karst_only_continentalness = [-0.19, -0.18]   # outermost coast: mask < 0.25 there, so no towers
+
+# ------------------------------------------------------------- structures --
+[structures]
+# biome tags tower_karst is added to. Underground structures only: surface structures (villages, outposts,
+# ruined portals, camps...) would sit on tower tops or have their footprint carved into tower walls.
+allow = ["has_structure/mineshaft", "has_structure/stronghold", "has_structure/trial_chambers", "is_overworld"]
 
 # ----------------------------------------------------------------- towers --
 # karstscape:tower_field (Java density function). Combined as max(terrain, towers) outside the
@@ -96,13 +118,13 @@ band_top = 264
 # weighted band blocks (limestone layers): stone dominates
 bands = [["minecraft:stone", 50], ["minecraft:andesite", 14], ["minecraft:calcite", 16], ["minecraft:tuff", 12], ["minecraft:dripstone_block", 8]]
 moss_noise = "minecraft:surface"
-moss_wall_threshold = 0.45   # 3D noise above this on walls -> moss block patches
+moss_wall_threshold = 0.55   # 2D noise above this -> moss streak down that column of the wall
 moss_top_threshold = 0.2     # 2D noise above this on tower tops -> moss block instead of grass
 riverbed_noise = "minecraft:surface"
 
 # ------------------------------------------------------------- vegetation --
 [vegetation]
-vine_count = 2500        # vine placement attempts per chunk on tower walls (y 66..240); most attempts miss a wall
+vine_count = 1200        # vine placement attempts per chunk on tower walls (y 66..240); most attempts miss a wall
 bamboo_rarity = 3        # 1 bamboo patch per N chunks
 azalea_count = 2         # azalea trees per chunk (lands on plain and tower tops)
 jungle_bush_count = 2
