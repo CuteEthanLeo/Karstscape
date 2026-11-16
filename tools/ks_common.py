@@ -173,6 +173,20 @@ def kill_tree(pid: int, force: bool = True) -> None:
             pass
 
 
+def request_close(pid: int) -> bool:
+    """Ask one process to close its windows (WM_CLOSE on Windows, SIGTERM elsewhere). No /T: with /T,
+    taskkill gives up on child console processes before the game window gets the message."""
+    if os.name == "nt":
+        return subprocess.run(["taskkill", "/PID", str(pid)], stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL).returncode == 0
+    import signal
+    try:
+        os.kill(pid, signal.SIGTERM)
+        return True
+    except ProcessLookupError:
+        return False
+
+
 def pid_alive(pid: int) -> bool:
     if os.name == "nt":
         out = subprocess.run(
@@ -201,6 +215,28 @@ def process_command_line(pid: int) -> str:
         return Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
     except OSError:
         return ""
+
+
+def find_java_pids(*needles: str) -> list[int]:
+    """PIDs of running java processes whose command line contains every needle (case-insensitive)."""
+    if os.name != "nt":
+        out = subprocess.run(["ps", "-eo", "pid=,args="], capture_output=True, text=True).stdout
+        rows = [ln.strip().split(None, 1) for ln in out.splitlines() if ln.strip()]
+    else:
+        # No double quotes in the script: they do not survive Windows argument quoting into PowerShell 5.1.
+        ps = ("Get-CimInstance Win32_Process | Where-Object { $_.Name -in 'java.exe','javaw.exe' } | "
+              "ForEach-Object { '{0}{1}{2}' -f $_.ProcessId, [char]9, $_.CommandLine }")
+        out = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+                             capture_output=True, text=True, errors="replace").stdout
+        rows = [ln.split("\t", 1) for ln in out.splitlines() if "\t" in ln]
+    pids = []
+    for row in rows:
+        if len(row) == 2 and all(n.lower() in row[1].lower() for n in needles):
+            try:
+                pids.append(int(row[0]))
+            except ValueError:
+                pass
+    return pids
 
 
 def decode_line(raw: bytes) -> str:

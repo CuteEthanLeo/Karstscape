@@ -142,10 +142,11 @@ def port_free(port: int) -> bool:
 
 
 class ServerProcess:
-    """gradlew runHeadlessServer with a reader thread that keeps every console line."""
+    """gradlew <task> (default runHeadlessServer) with a reader thread that keeps every console line."""
 
-    def __init__(self, java_home: Path, console_log: Path, extra_gradle_args: list[str]):
-        args = [*ks.gradlew(), "--no-daemon", "--console=plain", *extra_gradle_args, "runHeadlessServer"]
+    def __init__(self, java_home: Path, console_log: Path, extra_gradle_args: list[str],
+                 task: str = "runHeadlessServer"):
+        args = [*ks.gradlew(), "--no-daemon", "--console=plain", *extra_gradle_args, task]
         flags = 0
         if os.name == "nt":
             flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
