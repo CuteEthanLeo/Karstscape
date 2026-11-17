@@ -1,0 +1,36 @@
+{
+  "type": "minecraft:cache",
+  "input": {
+    "type": "minecraft:min",
+    "left": "karstscape:terrain/height_cliffs",
+    "right": {
+      "type": "minecraft:add",
+      "left": -0.546875,
+      "right": {
+        "type": "minecraft:mul",
+        "left": {
+          "type": "minecraft:pow",
+          "base": {
+            "type": "minecraft:clamp",
+            "input": {
+              "type": "minecraft:mul",
+              "left": {
+                "type": "minecraft:add",
+                "left": {
+                  "type": "minecraft:abs",
+                  "input": "karstscape:terrain/ridges"
+                },
+                "right": -0.015
+              },
+              "right": 8.333333333333332
+            },
+            "min": 0.0,
+            "max": 1.0
+          },
+          "exponent": 1.5
+        },
+        "right": 2.5
+      }
+    }
+  }
+}

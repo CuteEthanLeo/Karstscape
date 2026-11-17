@@ -2,6 +2,7 @@ package dev.karstscape.debug;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import dev.karstscape.Karstscape;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -39,6 +40,13 @@ public final class KarstCommands {
 						.executes(ctx -> spawn(ctx.getSource())))
 				.then(Commands.literal("info")
 						.executes(ctx -> info(ctx.getSource())))
+				.then(Commands.literal("layer")
+						.then(Commands.argument("radius", IntegerArgumentType.integer(16, 65536))
+								.then(Commands.argument("x", IntegerArgumentType.integer())
+										.then(Commands.argument("z", IntegerArgumentType.integer())
+												.then(Commands.argument("step", IntegerArgumentType.integer(1, 4096))
+														.then(Commands.argument("function", StringArgumentType.greedyString())
+																.executes(KarstCommands::layer)))))))
 				.then(Commands.literal("probe")
 						.then(Commands.argument("x", IntegerArgumentType.integer())
 								.then(Commands.argument("z", IntegerArgumentType.integer())
@@ -68,6 +76,35 @@ public final class KarstCommands {
 												.executes(ctx -> export(ctx, true, false))
 												.then(Commands.argument("step", IntegerArgumentType.integer(1, 4096))
 														.executes(ctx -> export(ctx, true, true))))))));
+	}
+
+	/** Tuning aid: image + statistics of one density function at y 64 (see LayerExport). */
+	private static int layer(CommandContext<CommandSourceStack> ctx) {
+		CommandSourceStack source = ctx.getSource();
+		ServerLevel level = source.getLevel();
+		int radius = IntegerArgumentType.getInteger(ctx, "radius");
+		int x = IntegerArgumentType.getInteger(ctx, "x"), z = IntegerArgumentType.getInteger(ctx, "z");
+		int step = IntegerArgumentType.getInteger(ctx, "step");
+		String fn = StringArgumentType.getString(ctx, "function").trim();
+		if (!EXPORT_RUNNING.compareAndSet(false, true)) {
+			source.sendFailure(Component.literal("Karstscape export already running"));
+			return 0;
+		}
+		Thread worker = new Thread(() -> {
+			try {
+				String summary = LayerExport.run(level, fn, x, z, radius, step, 64);
+				level.getServer().execute(() -> source.sendSuccess(
+						() -> Component.literal("Karstscape layer done: " + summary), false));
+			} catch (Throwable t) {
+				Karstscape.LOGGER.error("Karstscape layer failed", t);
+				level.getServer().execute(() -> source.sendFailure(Component.literal("Karstscape layer failed: " + t)));
+			} finally {
+				EXPORT_RUNNING.set(false);
+			}
+		}, "Karstscape layer");
+		worker.setDaemon(true);
+		worker.start();
+		return 1;
 	}
 
 	/** Which world generator is active: noise settings, dimension type, build height, sea level. */

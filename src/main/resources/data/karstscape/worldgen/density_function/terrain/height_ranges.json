@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:cache",
+  "input": {
+    "type": "minecraft:add",
+    "left": "karstscape:terrain/height_base",
+    "right": "karstscape:terrain/ranges"
+  }
+}

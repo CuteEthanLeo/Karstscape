@@ -105,9 +105,12 @@ class TerrainParamTests(unittest.TestCase):
         self.assertAlmostEqual(f(0.0), 0.0)  # the coast stays at sea level
 
     def test_highest_offset_below_top_slide(self):
-        offset = gw.terrain_functions(self.params["terrain"])["offset"]
-        top = max(gw.spline_leaves(gw.the_spline(offset)))
+        """Highest transformed spline value plus a full mountain crest stays under the top slide."""
+        base = gw.terrain_functions(self.params["terrain"])["height_base"]
+        top = max(gw.spline_leaves(gw.the_spline(base)))
         y = float(gw.WORLD["depth_zero_y"]) + (top + gw.OFFSET_SEA) * float(gw.WORLD["depth_blocks"])
+        r = self.params["terrain"]["ranges"]
+        y += float(r["height"]) * (1.0 - float(r["mean"]))
         self.assertLess(y, self.params["world"]["top_slide"][0])
 
 
@@ -148,6 +151,24 @@ class BuildTests(unittest.TestCase):
         self.assertFalse(tag["replace"])
         self.assertIn("karstscape:classic", tag["values"])
         self.assertNotIn("minecraft:normal", tag["values"])  # already in the vanilla tag
+
+    def test_karstscape_references_resolve(self):
+        """Every karstscape:<path> string in generated worldgen JSON names a generated file of some registry."""
+        import re
+        wg = gw.RES / "data" / "karstscape" / "worldgen"
+        known = set()
+        for p in self.files:
+            try:
+                rel = p.relative_to(wg)
+            except ValueError:
+                continue
+            known.add("karstscape:" + Path(*rel.parts[1:]).with_suffix("").as_posix())
+        known |= {"karstscape:overworld", "karstscape:tower_field", "karstscape:karst_surface"}
+        missing = set()
+        for p, text in self.files.items():
+            if p.suffix == ".json" and "worldgen" in p.parts:
+                missing |= {r for r in re.findall(r'"(karstscape:[a-z0-9_/.]+)"', text) if r not in known}
+        self.assertEqual(missing, set())
 
     def test_every_preset_has_a_name(self):
         lang = self.get("assets/karstscape/lang/zh_cn.json")

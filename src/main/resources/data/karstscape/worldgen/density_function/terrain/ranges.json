@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:cache",
+  "input": {
+    "type": "minecraft:mul",
+    "left": "karstscape:terrain/mountains",
+    "right": {
+      "type": "minecraft:mul",
+      "left": {
+        "type": "minecraft:add",
+        "left": "karstscape:terrain/crest",
+        "right": -0.33
+      },
+      "right": 0.3125
+    }
+  }
+}

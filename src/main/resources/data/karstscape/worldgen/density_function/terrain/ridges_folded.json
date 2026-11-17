@@ -1,19 +1,16 @@
 {
-  "type": "minecraft:mul",
+  "type": "minecraft:min",
   "left": {
     "type": "minecraft:add",
     "left": {
-      "type": "minecraft:abs",
-      "input": {
-        "type": "minecraft:add",
-        "left": {
-          "type": "minecraft:abs",
-          "input": "karstscape:terrain/ridges"
-        },
-        "right": -0.6666667
-      }
+      "type": "minecraft:mul",
+      "left": {
+        "type": "minecraft:abs",
+        "input": "karstscape:terrain/ridges"
+      },
+      "right": 3.0
     },
-    "right": -0.33333334
+    "right": -1.0
   },
-  "right": -3.0
+  "right": 1.0
 }

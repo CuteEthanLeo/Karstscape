@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:cache",
+  "input": {
+    "type": "minecraft:add",
+    "left": {
+      "type": "minecraft:mul",
+      "left": "karstscape:terrain/height_ranges",
+      "right": 6.4
+    },
+    "right": 3.2
+  }
+}

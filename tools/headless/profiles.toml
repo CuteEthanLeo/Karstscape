@@ -113,6 +113,67 @@ send = "karstscape export 12288 0 0 64"
 expect = 'Karstscape export (done: \S*_r12288_s64\b|failed)'
 timeout = 900
 
+[layers]
+# default world: images + statistics of the M8 terrain feature masks around spawn (tuning aid, use with --seed)
+seed = "20260915"
+level_type = "minecraft:normal"
+level_name = "ks_layers"
+baseline = "vanilla"
+collect = []
+
+[[layers.commands]]
+send = "karstscape layer 3072 0 0 8 karstscape:terrain/mountains"
+expect = 'Karstscape layer (done: karstscape:terrain/mountains:|failed)'
+timeout = 600
+
+[[layers.commands]]
+send = "karstscape layer 3072 0 0 8 karstscape:terrain/ridges"
+expect = 'Karstscape layer (done: karstscape:terrain/ridges:|failed)'
+timeout = 600
+
+[[layers.commands]]
+send = "karstscape layer 3072 0 0 8 karstscape:terrain/ranges"
+expect = 'Karstscape layer (done: karstscape:terrain/ranges:|failed)'
+timeout = 600
+
+[[layers.commands]]
+send = "karstscape layer 3072 0 0 8 karstscape:terrain/plateau_mask"
+expect = 'Karstscape layer (done: karstscape:terrain/plateau_mask:|failed)'
+timeout = 600
+
+[[layers.commands]]
+send = "karstscape layer 3072 0 0 8 karstscape:terrain/cliff_mask"
+expect = 'Karstscape layer (done: karstscape:terrain/cliff_mask:|failed)'
+timeout = 600
+
+[[layers.commands]]
+send = "karstscape layer 3072 0 0 8 karstscape:terrain/height"
+expect = 'Karstscape layer (done: karstscape:terrain/height:|failed)'
+timeout = 600
+
+[[layers.commands]]
+# block-detail terrain of the mountains NE of spawn (seed 20260915): crests, gorges, terraces
+send = "karstscape export 768 1200 -800 2"
+expect = 'Karstscape export (done: \S*_r768_s2\b|failed)'
+timeout = 900
+
+[[layers.commands]]
+# terraces (plateau mask peak, seed 20260915)
+send = "karstscape export 512 -1152 -1472 2"
+expect = 'Karstscape export (done: \S*x-1152_z-1472_r512_s2\b|failed)'
+timeout = 900
+
+[[layers.commands]]
+# coastal cliffs (cliff mask peak, seed 20260915)
+send = "karstscape export 512 -2944 -1088 2"
+expect = 'Karstscape export (done: \S*x-2944_z-1088_r512_s2\b|failed)'
+timeout = 900
+
+[[layers.commands]]
+send = "karstscape layer 512 -2944 -1088 2 karstscape:terrain/cliff_mask"
+expect = 'Karstscape layer (done: karstscape:terrain/cliff_mask:|failed)'
+timeout = 600
+
 [towers]
 # karst_only world, block-exact export of one 1 km square: tower statistics (SPEC §3.2 targets)
 seed = "20260915"

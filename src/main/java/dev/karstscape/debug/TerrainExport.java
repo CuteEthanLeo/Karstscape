@@ -91,6 +91,7 @@ public final class TerrainExport {
 				? noise.generatorSettings().unwrapKey().map(k -> k.identifier().toString()).orElse("inline")
 				: generator.getClass().getSimpleName();
 		DensityFunction mask = findMask(settingsId);
+		DensityFunction weirdness = findFunction(Karstscape.MOD_ID + ":terrain/ridges");
 		int seaLevel = generator.getSeaLevel();
 		int minY = level.getMinY(), maxY = level.getMaxY();
 		Predicate<BlockState> notAir = Heightmap.Types.WORLD_SURFACE_WG.isOpaque();
@@ -101,6 +102,7 @@ public final class TerrainExport {
 		int[] floor = new int[size];
 		float[] slope = new float[size];
 		float[] maskValue = new float[size];
+		ridgesValue = weirdness == null ? null : new float[size];
 		int[] biome = new int[size];
 		Map<String, Integer> biomeIds = new ConcurrentHashMap<>();
 		List<String> biomeNames = java.util.Collections.synchronizedList(new ArrayList<>());
@@ -124,6 +126,7 @@ public final class TerrainExport {
 					int gz = generator.getBaseHeight(x, z + 1, Heightmap.Types.OCEAN_FLOOR_WG, level, randomState) - 1;
 					double grad = Math.hypot(gx - ground, gz - ground);
 					slope[i] = (float) Math.toDegrees(Math.atan(grad));
+					if (weirdness != null) ridgesValue[i] = randomState.sampleBlockValueUncached(weirdness, x, 64, z);
 					maskValue[i] = mask == null ? 0f
 							: randomState.sampleBlockValueUncached(mask, x, Math.max(top, seaLevel), z);
 					Holder<Biome> b = resolver.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(top), QuartPos.fromBlock(z));
@@ -180,6 +183,45 @@ public final class TerrainExport {
 				outDir, n, n, 100 * karst.get("fraction_of_land").getAsDouble(), (System.nanoTime() - t0) / 1e9);
 		Karstscape.LOGGER.info("Karstscape export done: {}", summary);
 		return summary;
+	}
+
+	/** karstscape:terrain/ridges per sample (river corridors), or null in worlds without it. */
+	private float[] ridgesValue;
+
+	private DensityFunction findFunction(String id) {
+		Identifier key = Identifier.tryParse(id);
+		if (key == null) return null;
+		return level.getServer().registryAccess().lookupOrThrow(Registries.DENSITY_FUNCTION).get(key)
+				.map(Holder::value).orElse(null);
+	}
+
+	/** River corridors (|terrain/ridges| < 0.01, the centre of the carved channel): how many are not water. */
+	private JsonObject rivers(Grid g) {
+		JsonObject o = new JsonObject();
+		if (ridgesValue == null) {
+			o.addProperty("skipped", "no karstscape:terrain/ridges");
+			return o;
+		}
+		int core = 0, coreWater = 0, coreAbove64 = 0, coreOcean = 0;
+		List<Integer> tops = new ArrayList<>();
+		for (int i = 0; i < ridgesValue.length; i++) {
+			if (Math.abs(ridgesValue[i]) >= 0.01f) continue;
+			if (g.water(i) && g.floor()[i] < g.seaLevel() - 20) {
+				coreOcean++;  // deep water: the corridor runs through an ocean or a deep lake
+				continue;
+			}
+			core++;
+			if (g.water(i)) coreWater++;
+			if (g.surface()[i] > 64) coreAbove64++;
+			tops.add(g.surface()[i]);
+		}
+		o.addProperty("definition", "samples with |terrain/ridges| < 0.01 outside deep water (floor >= sea level - 20)");
+		o.addProperty("core_samples", core);
+		o.addProperty("core_samples_in_deep_water", coreOcean);
+		o.addProperty("water_fraction", ratio(coreWater, core));
+		o.addProperty("surface_above_64_fraction", ratio(coreAbove64, core));
+		o.add("surface", percentiles(tops));
+		return o;
 	}
 
 	private DensityFunction findMask(String settingsId) {
@@ -497,6 +539,7 @@ public final class TerrainExport {
 		heights.add("outside_mask", percentiles(hOut));
 		o.add("surface_height", heights);
 		o.add("terrain", terrain(g));
+		o.add("rivers", rivers(g));
 
 		JsonObject slopes = new JsonObject();
 		slopes.add("land_deg", percentilesF(sLand));

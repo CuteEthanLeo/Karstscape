@@ -20,7 +20,7 @@ cloud_height = 260.33     # vanilla 192.33; mountain tops rise through the cloud
 # depth = (depth_zero_y - y) / depth_blocks + offset; the surface is where depth = 0 (vanilla 128 / 128)
 depth_zero_y = 128
 depth_blocks = 128
-top_slide = [416, 440]     # terrain fades to air between these y (vanilla 240..256)
+top_slide = [424, 446]     # terrain fades to air between these y (vanilla 240..256)
 classic_en = "Classic (vanilla)"
 classic_zh = "原版地形"
 
@@ -37,9 +37,73 @@ continents_bias = 0.08       # added to continentalness: more land (vanilla coas
 # offset spline: vanilla height above sea level (blocks; 128 x spline value) -> new height above sea.
 # Piecewise linear, extrapolated with the end slopes; derivatives are scaled by the local slope.
 # Vanilla spline values span about -38 .. +192 blocks (deep ocean floor ~y25, highest offset ~y255).
-offset_curve = [[-40, -76], [0, 0], [16, 18], [64, 112], [128, 250], [192, 340]]
+offset_curve = [[-40, -76], [0, 0], [16, 18], [64, 112], [128, 230], [192, 280]]
 factor_scale = 1.0           # x vanilla factor (lower = stronger 3D noise, more overhangs)
-jaggedness_scale = 1.4       # x vanilla jaggedness (jagged peak noise on mountain ridges)
+jaggedness_scale = 1.0       # x vanilla jaggedness (jagged peak noise on mountain ridges)
+sea_level = 63               # = noise settings sea level (cliffs and plateaus are measured from it)
+
+# M8 features, applied in this order on top of the transformed offset (all heights in blocks):
+[terrain.ranges]
+# long mountain crests: ridged noise (1 - |n|)^2, only where the land is mountainous
+crater_fix = true            # vanilla ridges fold makes ring mountains around a dip; keep the peak level instead
+crest_ridges = true          # in mountains, weirdness follows the crests (peaks line up into ranges)
+weirdness = [0.1, 0.7]       # |weirdness| between crests .. on a crest (vanilla peaks at 2/3, valleys at 0)
+river_keep = 0.1             # |raw weirdness| below this keeps its value (rivers continue through mountains)
+noise = "karstscape:ridgeline"
+xz_scale = 1.0
+height = 40                  # extra crest height above the range mean ...
+mean = 0.33                  # ... minus mean * height in the valleys between crests
+erosion = [-0.15, -0.45]     # mountain mask 0 -> 1 (vanilla mountains are erosion < -0.375)
+continents = [-0.05, 0.1]    # inland only
+
+[terrain.plateaus]
+# terraced hill country: flat treads, steep risers (mesas / tablelands); never in mountains
+noise = "karstscape:plateau"
+xz_scale = 1.0
+threshold = [0.2, 0.4]       # noise -> mask 0 .. 1
+step = 20                    # blocks per terrace
+base_y = 64
+riser = 0.3                  # fraction of a step used by the riser
+tread_rise = 0.05            # treads rise this fraction of a step (slight slope, not dead flat)
+min_above_sea = 6            # terraces start this far above sea level (beaches and lowlands stay smooth)
+factor = 8.0                 # terrain factor on plateaus (vanilla <= 6.3) (less 3D noise: flat treads, clean risers)
+
+[terrain.cliffs]
+# some coasts rise by `height` within `ramp` blocks of the shoreline (fading inland with continentalness)
+noise = "karstscape:cliff"
+xz_scale = 1.0
+threshold = [-0.15, 0.1]     # about half of the coasts
+continents = [0.12, -0.05]   # full at the coast, gone well inland
+height = 28
+ramp = 0.5                   # the rise happens within this height above sea of the original shore (steeper = smaller)
+
+[terrain.rivers]
+# every river (|ridges| ~ 0, the vanilla river biome is |ridges| < 0.05) is cut down to bed_y; through high
+# land that makes a gorge. The channel rises from bed_y by `rise` blocks over `bank` (|ridges| units).
+center = 0.015
+bank = 0.12
+bed_y = 58
+rise = 320
+power = 1.5                  # > 1: narrow at the bottom, widening upwards (V-shaped gorge)
+
+# ----------------------------------------------------------------- noises --
+# karstscape:<name> noise parameters (26.3 format, see reference/vanilla-26.3/data/minecraft/worldgen/noise/).
+# Normalised: a value std of base_amplitude / 3. Frequency of the first octave is 2^base_octave per block.
+[noises.ridgeline]
+base_octave = -10
+octave_count = 3
+base_amplitude = 2.0
+amplitude_modifiers = [1.0, 0.35, 0.12]
+
+[noises.plateau]
+base_octave = -10
+octave_count = 2
+base_amplitude = 1.0
+
+[noises.cliff]
+base_octave = -10
+octave_count = 2
+base_amplitude = 1.0
 
 # ---------------------------------------------------------------- regions --
 # The biome karstscape:tower_karst occupies exactly this box. The terrain mask is 1 inside the box minus

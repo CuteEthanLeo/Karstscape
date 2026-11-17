@@ -1,0 +1,1488 @@
+{
+  "type": "minecraft:cache",
+  "input": {
+    "type": "minecraft:add",
+    "left": -0.50375,
+    "right": {
+      "type": "minecraft:spline",
+      "spline": {
+        "coordinate": "karstscape:terrain/continents",
+        "points": [
+          {
+            "derivative": 0.0,
+            "location": -1.1,
+            "value": 0.0495
+          },
+          {
+            "derivative": 0.0,
+            "location": -1.02,
+            "value": -0.42218
+          },
+          {
+            "derivative": 0.0,
+            "location": -0.51,
+            "value": -0.42218
+          },
+          {
+            "derivative": 0.0,
+            "location": -0.44,
+            "value": -0.228
+          },
+          {
+            "derivative": 0.0,
+            "location": -0.18,
+            "value": -0.228
+          },
+          {
+            "derivative": 0.0,
+            "location": -0.16,
+            "value": {
+              "coordinate": "karstscape:terrain/erosion",
+              "points": [
+                {
+                  "derivative": 0.0,
+                  "location": -0.85,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.739862,
+                        "location": -1.0,
+                        "value": -0.168724
+                      },
+                      {
+                        "derivative": 0.717958,
+                        "location": 1.0,
+                        "value": 1.225313
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.7,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.717972,
+                        "location": -1.0,
+                        "value": -0.219945
+                      },
+                      {
+                        "derivative": 0.696717,
+                        "location": 1.0,
+                        "value": 1.133125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.4,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": -0.42218
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.75,
+                        "value": -0.42218
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.65,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.5954547,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.285138,
+                        "location": 0.6054547,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.285138,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.35,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.57
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.4,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.007875,
+                        "location": 1.0,
+                        "value": 0.0675
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.1,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.285
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.1125,
+                        "location": 0.4,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.007875,
+                        "location": 1.0,
+                        "value": 0.0675
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.2,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.285
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.4,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 1.0,
+                        "value": 0.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.7,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": -0.038
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": -0.057
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": -0.057
+                      },
+                      {
+                        "derivative": 0.0675,
+                        "location": 0.4,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 1.0,
+                        "value": 0.0
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "derivative": 0.0,
+            "location": -0.15,
+            "value": {
+              "coordinate": "karstscape:terrain/erosion",
+              "points": [
+                {
+                  "derivative": 0.0,
+                  "location": -0.85,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.739862,
+                        "location": -1.0,
+                        "value": -0.168724
+                      },
+                      {
+                        "derivative": 0.717958,
+                        "location": 1.0,
+                        "value": 1.225313
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.7,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.717972,
+                        "location": -1.0,
+                        "value": -0.219945
+                      },
+                      {
+                        "derivative": 0.696717,
+                        "location": 1.0,
+                        "value": 1.133125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.4,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": -0.42218
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.75,
+                        "value": -0.42218
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.65,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.5954547,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.285138,
+                        "location": 0.6054547,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.285138,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.35,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.57
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.4,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.007875,
+                        "location": 1.0,
+                        "value": 0.0675
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.1,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.285
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.1125,
+                        "location": 0.4,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.007875,
+                        "location": 1.0,
+                        "value": 0.0675
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.2,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.285
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.4,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 1.0,
+                        "value": 0.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.7,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": -0.038
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": -0.057
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": -0.057
+                      },
+                      {
+                        "derivative": 0.0675,
+                        "location": 0.4,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 1.0,
+                        "value": 0.0
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "derivative": 0.0,
+            "location": -0.1,
+            "value": {
+              "coordinate": "karstscape:terrain/erosion",
+              "points": [
+                {
+                  "derivative": 0.0,
+                  "location": -0.85,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.739862,
+                        "location": -1.0,
+                        "value": -0.168724
+                      },
+                      {
+                        "derivative": 0.717958,
+                        "location": 1.0,
+                        "value": 1.225313
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.7,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.717972,
+                        "location": -1.0,
+                        "value": -0.219945
+                      },
+                      {
+                        "derivative": 0.696717,
+                        "location": 1.0,
+                        "value": 1.133125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.4,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": -0.42218
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.75,
+                        "value": -0.42218
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.65,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.5954547,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.285138,
+                        "location": 0.6054547,
+                        "value": 0.0
+                      },
+                      {
+                        "derivative": 0.285138,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.35,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.475
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.4,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.007875,
+                        "location": 1.0,
+                        "value": 0.0675
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.1,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.19
+                      },
+                      {
+                        "derivative": 0.01125,
+                        "location": -0.4,
+                        "value": 0.001125
+                      },
+                      {
+                        "derivative": 0.01125,
+                        "location": 0.0,
+                        "value": 0.003375
+                      },
+                      {
+                        "derivative": 0.10575,
+                        "location": 0.4,
+                        "value": 0.05625
+                      },
+                      {
+                        "derivative": 0.007875,
+                        "location": 1.0,
+                        "value": 0.0675
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.2,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.19
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.045,
+                        "location": 0.4,
+                        "value": 0.03375
+                      },
+                      {
+                        "derivative": 0.055125,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.7,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": -0.038
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": -0.057
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": -0.057
+                      },
+                      {
+                        "derivative": 0.135,
+                        "location": 0.4,
+                        "value": 0.03375
+                      },
+                      {
+                        "derivative": 0.055125,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "derivative": 0.0,
+            "location": 0.25,
+            "value": {
+              "coordinate": "karstscape:terrain/erosion",
+              "points": [
+                {
+                  "derivative": 0.0,
+                  "location": -0.85,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": 0.292102
+                      },
+                      {
+                        "derivative": 0.947365,
+                        "location": 0.0,
+                        "value": 1.273573
+                      },
+                      {
+                        "derivative": 0.401426,
+                        "location": 1.0,
+                        "value": 1.976562
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.7,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": 0.2875
+                      },
+                      {
+                        "derivative": 0.84831,
+                        "location": 0.0,
+                        "value": 0.770856
+                      },
+                      {
+                        "derivative": 0.798675,
+                        "location": 1.0,
+                        "value": 1.575625
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.4,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": 0.2875
+                      },
+                      {
+                        "derivative": 0.767089,
+                        "location": 0.0,
+                        "value": 0.499578
+                      },
+                      {
+                        "derivative": 0.722206,
+                        "location": 1.0,
+                        "value": 1.24375
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.35,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.475
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.58125
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.58125
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.4,
+                        "value": 0.58125
+                      },
+                      {
+                        "derivative": 0.095958,
+                        "location": 1.0,
+                        "value": 0.718333
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.1,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.19
+                      },
+                      {
+                        "derivative": 0.07875,
+                        "location": -0.4,
+                        "value": 0.007875
+                      },
+                      {
+                        "derivative": 0.07875,
+                        "location": 0.0,
+                        "value": 0.023625
+                      },
+                      {
+                        "derivative": 1.288583,
+                        "location": 0.4,
+                        "value": 0.58125
+                      },
+                      {
+                        "derivative": 0.095958,
+                        "location": 1.0,
+                        "value": 0.718333
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.2,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.19
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.045,
+                        "location": 0.4,
+                        "value": 0.03375
+                      },
+                      {
+                        "derivative": 0.055125,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.4,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.19
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.045,
+                        "location": 0.4,
+                        "value": 0.03375
+                      },
+                      {
+                        "derivative": 0.055125,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.45,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": -0.19
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": {
+                          "coordinate": "karstscape:terrain/ridges_folded",
+                          "points": [
+                            {
+                              "derivative": 0.95,
+                              "location": -1.0,
+                              "value": -0.19
+                            },
+                            {
+                              "derivative": 0.0,
+                              "location": -0.4,
+                              "value": 0.01125
+                            },
+                            {
+                              "derivative": 0.0,
+                              "location": 0.0,
+                              "value": 0.01125
+                            },
+                            {
+                              "derivative": 0.045,
+                              "location": 0.4,
+                              "value": 0.03375
+                            },
+                            {
+                              "derivative": 0.055125,
+                              "location": 1.0,
+                              "value": 0.1125
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.22875
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.55,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": -0.19
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": {
+                          "coordinate": "karstscape:terrain/ridges_folded",
+                          "points": [
+                            {
+                              "derivative": 0.95,
+                              "location": -1.0,
+                              "value": -0.19
+                            },
+                            {
+                              "derivative": 0.0,
+                              "location": -0.4,
+                              "value": 0.01125
+                            },
+                            {
+                              "derivative": 0.0,
+                              "location": 0.0,
+                              "value": 0.01125
+                            },
+                            {
+                              "derivative": 0.045,
+                              "location": 0.4,
+                              "value": 0.03375
+                            },
+                            {
+                              "derivative": 0.055125,
+                              "location": 1.0,
+                              "value": 0.1125
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.22875
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.58,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.19
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.045,
+                        "location": 0.4,
+                        "value": 0.03375
+                      },
+                      {
+                        "derivative": 0.055125,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.7,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": -0.038
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": -0.057
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": -0.057
+                      },
+                      {
+                        "derivative": 0.135,
+                        "location": 0.4,
+                        "value": 0.03375
+                      },
+                      {
+                        "derivative": 0.055125,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "derivative": 0.0,
+            "location": 1.0,
+            "value": {
+              "coordinate": "karstscape:terrain/erosion",
+              "points": [
+                {
+                  "derivative": 0.0,
+                  "location": -0.85,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": 0.577189
+                      },
+                      {
+                        "derivative": 1.062068,
+                        "location": 0.0,
+                        "value": 1.656682
+                      },
+                      {
+                        "derivative": 0.450029,
+                        "location": 1.0,
+                        "value": 2.1875
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.7,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": 0.2875
+                      },
+                      {
+                        "derivative": 0.849654,
+                        "location": 0.0,
+                        "value": 0.947221
+                      },
+                      {
+                        "derivative": 0.360023,
+                        "location": 1.0,
+                        "value": 1.796875
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.4,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": 0.2875
+                      },
+                      {
+                        "derivative": 0.849654,
+                        "location": 0.0,
+                        "value": 0.947221
+                      },
+                      {
+                        "derivative": 0.360023,
+                        "location": 1.0,
+                        "value": 1.796875
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.35,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.38
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.875
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.875
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.4,
+                        "value": 0.875
+                      },
+                      {
+                        "derivative": 0.129063,
+                        "location": 1.0,
+                        "value": 1.059375
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": -0.1,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.095
+                      },
+                      {
+                        "derivative": 0.1125,
+                        "location": -0.4,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.1125,
+                        "location": 0.0,
+                        "value": 0.03375
+                      },
+                      {
+                        "derivative": 1.733125,
+                        "location": 0.4,
+                        "value": 0.875
+                      },
+                      {
+                        "derivative": 0.129063,
+                        "location": 1.0,
+                        "value": 1.059375
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.2,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.095
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.045,
+                        "location": 0.4,
+                        "value": 0.03375
+                      },
+                      {
+                        "derivative": 0.055125,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.4,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.095
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.045,
+                        "location": 0.4,
+                        "value": 0.03375
+                      },
+                      {
+                        "derivative": 0.055125,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.45,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": -0.095
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": {
+                          "coordinate": "karstscape:terrain/ridges_folded",
+                          "points": [
+                            {
+                              "derivative": 0.95,
+                              "location": -1.0,
+                              "value": -0.095
+                            },
+                            {
+                              "derivative": 0.0,
+                              "location": -0.4,
+                              "value": 0.01125
+                            },
+                            {
+                              "derivative": 0.0,
+                              "location": 0.0,
+                              "value": 0.01125
+                            },
+                            {
+                              "derivative": 0.045,
+                              "location": 0.4,
+                              "value": 0.03375
+                            },
+                            {
+                              "derivative": 0.055125,
+                              "location": 1.0,
+                              "value": 0.1125
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.22875
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.55,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0,
+                        "location": -1.0,
+                        "value": -0.095
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": {
+                          "coordinate": "karstscape:terrain/ridges_folded",
+                          "points": [
+                            {
+                              "derivative": 0.95,
+                              "location": -1.0,
+                              "value": -0.095
+                            },
+                            {
+                              "derivative": 0.0,
+                              "location": -0.4,
+                              "value": 0.01125
+                            },
+                            {
+                              "derivative": 0.0,
+                              "location": 0.0,
+                              "value": 0.01125
+                            },
+                            {
+                              "derivative": 0.045,
+                              "location": 0.4,
+                              "value": 0.03375
+                            },
+                            {
+                              "derivative": 0.055125,
+                              "location": 1.0,
+                              "value": 0.1125
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.22875
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.58,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.95,
+                        "location": -1.0,
+                        "value": -0.095
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.045,
+                        "location": 0.4,
+                        "value": 0.03375
+                      },
+                      {
+                        "derivative": 0.055125,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                },
+                {
+                  "derivative": 0.0,
+                  "location": 0.7,
+                  "value": {
+                    "coordinate": "karstscape:terrain/ridges_folded",
+                    "points": [
+                      {
+                        "derivative": 0.0285,
+                        "location": -1.0,
+                        "value": -0.038
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": -0.4,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.0,
+                        "location": 0.0,
+                        "value": 0.01125
+                      },
+                      {
+                        "derivative": 0.045,
+                        "location": 0.4,
+                        "value": 0.03375
+                      },
+                      {
+                        "derivative": 0.055125,
+                        "location": 1.0,
+                        "value": 0.1125
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

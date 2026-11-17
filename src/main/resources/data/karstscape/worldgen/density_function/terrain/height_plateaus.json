@@ -1,0 +1,46 @@
+{
+  "type": "minecraft:cache",
+  "input": {
+    "type": "minecraft:lerp",
+    "alpha": "karstscape:terrain/plateau_mask",
+    "first": "karstscape:terrain/height_ranges",
+    "second": {
+      "type": "minecraft:add",
+      "left": {
+        "type": "minecraft:mul",
+        "left": {
+          "type": "minecraft:add",
+          "left": {
+            "type": "minecraft:floor",
+            "input": "karstscape:terrain/terrace_t"
+          },
+          "right": {
+            "type": "minecraft:spline",
+            "spline": {
+              "coordinate": "karstscape:terrain/terrace_frac",
+              "points": [
+                {
+                  "location": 0.0,
+                  "value": 0.0,
+                  "derivative": 0.0
+                },
+                {
+                  "location": 0.7,
+                  "value": 0.05,
+                  "derivative": 0.0
+                },
+                {
+                  "location": 1.0,
+                  "value": 1.0,
+                  "derivative": 0.0
+                }
+              ]
+            }
+          }
+        },
+        "right": 0.15625
+      },
+      "right": -0.5
+    }
+  }
+}

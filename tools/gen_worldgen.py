@@ -315,8 +315,34 @@ def terrain_functions(t: dict) -> dict[str, dict]:
         if bias:  # keep the cache outermost (the router and splines read the cached value)
             fn = {"type": "minecraft:cache", "input": df_add(noise, bias)}
         out[n] = fn
-    out["ridges_folded"] = rewrite_refs(load(VWG / "density_function" / "overworld" / "ridges_folded.json"),
-                                        TERRAIN_MAP)
+    r = t["ranges"]
+    # mountain mask (erosion / continentalness only, so the ridges below can depend on it)
+    out["mountains"] = {"type": "minecraft:cache", "input": df_mul(
+        ramp(f"{TERRAIN}/erosion", *r["erosion"]), ramp(f"{TERRAIN}/continents", *r["continents"]))}
+    # crest = (1 - |n|)^2 of a ridged noise: 1 on long sinuous crest lines, 0 between them
+    out["crest"] = {"type": "minecraft:cache", "input": {"type": "minecraft:square", "input": df_add(1.0, {
+        "type": "minecraft:negate", "input": df_clamp01({"type": "minecraft:abs", "input": {
+            "type": "minecraft:noise", "noise": r["noise"], "xz_scale": r["xz_scale"], "y_scale": 0.0}})})}}
+    if r.get("crest_ridges", False):
+        # In mountains the weirdness magnitude follows the crests (|w| lo between crests .. hi on a crest), so
+        # vanilla peaks (|w| ~ 2/3) line up along ranges instead of filling whole blobs. Near |w| = 0 the raw
+        # value is kept (river_keep), so rivers still run through. Biomes, rivers and karst read the same value.
+        out["ridges_raw"] = out.pop("ridges")
+        raw = f"{TERRAIN}/ridges_raw"
+        absraw = {"type": "minecraft:abs", "input": raw}
+        lo, hi = (float(v) for v in r["weirdness"])
+        shaped = df_mul(df_clamp01(df_mul(absraw, 1.0 / float(r["river_keep"]))),
+                        df_add(lo, df_mul(f"{TERRAIN}/crest", hi - lo)))
+        out["ridges"] = {"type": "minecraft:cache", "input": df_mul({"type": "minecraft:sign", "input": raw}, {
+            "type": "minecraft:lerp", "alpha": f"{TERRAIN}/mountains", "first": absraw, "second": shaped})}
+    if r.get("crater_fix", False):
+        # vanilla folds |ridges| at 2/3, so the terrain drops again towards the ridges extremes: ring-shaped
+        # mountains around a dip. Keep the peak level beyond 2/3 instead: min(3|r| - 1, 1) (same below 2/3).
+        out["ridges_folded"] = {"type": "minecraft:min", "left": df_add(df_mul(
+            {"type": "minecraft:abs", "input": f"{TERRAIN}/ridges"}, 3.0), -1.0), "right": 1.0}
+    else:
+        out["ridges_folded"] = rewrite_refs(load(VWG / "density_function" / "overworld" / "ridges_folded.json"),
+                                            TERRAIN_MAP)
     f, df = offset_curve(t)
     for n, (fv, dfv) in {
         "offset": (f, df),
@@ -326,7 +352,104 @@ def terrain_functions(t: dict) -> dict[str, dict]:
         fn = rewrite_refs(load(VWG / "density_function" / "overworld" / f"{n}.json"), TERRAIN_MAP)
         map_spline(the_spline(fn), fv, dfv)
         out[n] = fn
+
+    # offset = cache(lerp(blend_alpha, blend_offset, HEIGHT)); HEIGHT gets the M8 features, the blend stays outermost
+    lerp = out["offset"].get("input", {})
+    if not (out["offset"].get("type") == "minecraft:cache" and lerp.get("type") == "minecraft:lerp"
+            and lerp.get("alpha") == {"type": "minecraft:blend_alpha"}):
+        raise SystemExit("unexpected vanilla offset shape; update terrain_functions()")
+    out["height_base"] = {"type": "minecraft:cache", "input": lerp["second"]}
+    out.update(feature_functions(t))
+    lerp["second"] = f"{TERRAIN}/height"
+
+    # plateaus: a higher factor (less 3D noise) keeps terrace treads flat and risers clean
+    pf = float(t["plateaus"].get("factor", 0.0))
+    if pf:
+        flerp = out["factor"].get("input", {})
+        if flerp.get("type") != "minecraft:lerp" or flerp.get("alpha") != {"type": "minecraft:blend_alpha"}:
+            raise SystemExit("unexpected vanilla factor shape; update terrain_functions()")
+        # plain lerp to pf: a max() with the spline would be constant (vanilla factor <= 6.3) and the game warns
+        # about max() of non-overlapping inputs
+        flerp["second"] = {"type": "minecraft:lerp", "alpha": f"{TERRAIN}/plateau_mask", "first": flerp["second"],
+                           "second": pf}
     return out
+
+
+def ramp(x, a: float, b: float) -> dict:
+    """0 at x = a, 1 at x = b (either direction), clamped."""
+    return df_clamp01(df_mul(df_add(x, -a), 1.0 / (b - a)))
+
+
+def blocks(n: float) -> float:
+    """A height difference in blocks as offset units."""
+    return float(n) / float(WORLD["depth_blocks"])
+
+
+def feature_functions(t: dict) -> dict[str, dict]:
+    """M8 terrain features on top of height_base, in order: ranges, plateaus, cliffs, rivers.
+
+    All are 2D functions of the climate noises and a few karstscape noises (no global state)."""
+    out = {}
+    erosion, continents = f"{TERRAIN}/erosion", f"{TERRAIN}/continents"
+    sea = y_to_offset(int(t["sea_level"]))
+
+    # --- mountain ranges: extra height on the crests (terrain/crest), only in mountainous land
+    r = t["ranges"]
+    out["ranges"] = {"type": "minecraft:cache", "input": df_mul(
+        f"{TERRAIN}/mountains", df_mul(df_add(f"{TERRAIN}/crest", -float(r["mean"])), blocks(r["height"])))}
+    h = df_add(f"{TERRAIN}/height_base", f"{TERRAIN}/ranges")
+    out["height_ranges"] = {"type": "minecraft:cache", "input": h}
+
+    # --- plateaus: terraced height (flat treads, steep risers) in noise-selected hill country
+    pl = t["plateaus"]
+    step, base = float(pl["step"]), float(pl["base_y"])
+    # t = (y - base) / step with y = depth_zero_y + depth_blocks * h
+    tt = df_add(df_mul(f"{TERRAIN}/height_ranges", float(WORLD["depth_blocks"]) / step),
+                (float(WORLD["depth_zero_y"]) - base) / step)
+    out["terrace_t"] = {"type": "minecraft:cache", "input": tt}
+    out["terrace_frac"] = {"type": "minecraft:sub", "left": f"{TERRAIN}/terrace_t",
+                           "right": {"type": "minecraft:floor", "input": f"{TERRAIN}/terrace_t"}}
+    riser = float(pl["riser"])
+    profile = {"type": "minecraft:spline", "spline": {"coordinate": f"{TERRAIN}/terrace_frac", "points": [
+        {"location": 0.0, "value": 0.0, "derivative": 0.0},
+        {"location": round(1.0 - riser, 6), "value": float(pl["tread_rise"]), "derivative": 0.0},
+        {"location": 1.0, "value": 1.0, "derivative": 0.0}]}}
+    terraced_t = df_add({"type": "minecraft:floor", "input": f"{TERRAIN}/terrace_t"}, profile)
+    terraced = df_add(df_mul(terraced_t, step / float(WORLD["depth_blocks"])),
+                      (base - float(WORLD["depth_zero_y"])) / float(WORLD["depth_blocks"]))
+    above = ramp(f"{TERRAIN}/height_ranges", sea + blocks(pl["min_above_sea"]),
+                 sea + blocks(pl["min_above_sea"] + step))
+    pnoise = {"type": "minecraft:noise", "noise": pl["noise"], "xz_scale": pl["xz_scale"], "y_scale": 0.0}
+    out["plateau_mask"] = {"type": "minecraft:cache", "input": df_mul(df_mul(
+        ramp(pnoise, *pl["threshold"]), above), df_add(1.0, {"type": "minecraft:negate", "input": f"{TERRAIN}/mountains"}))}
+    out["height_plateaus"] = {"type": "minecraft:cache", "input": {
+        "type": "minecraft:lerp", "alpha": f"{TERRAIN}/plateau_mask", "first": f"{TERRAIN}/height_ranges",
+        "second": terraced}}
+
+    # --- coastal cliffs: land rises by `height` within `ramp` blocks of the shoreline, fading inland
+    c = t["cliffs"]
+    cnoise = {"type": "minecraft:noise", "noise": c["noise"], "xz_scale": c["xz_scale"], "y_scale": 0.0}
+    out["cliff_mask"] = {"type": "minecraft:cache", "input": df_mul(
+        ramp(cnoise, *c["threshold"]), ramp(continents, *c["continents"]))}
+    shore = ramp(f"{TERRAIN}/height_plateaus", sea, sea + blocks(c["ramp"]))
+    out["height_cliffs"] = {"type": "minecraft:cache", "input": df_add(
+        f"{TERRAIN}/height_plateaus", df_mul(f"{TERRAIN}/cliff_mask", df_mul(shore, blocks(c["height"]))))}
+
+    # --- rivers: every river (|ridges| ~ 0) is cut down to bed_y; in high land this makes a gorge
+    rv = t["rivers"]
+    corridor = ramp({"type": "minecraft:abs", "input": f"{TERRAIN}/ridges"}, float(rv["center"]),
+                    float(rv["center"]) + float(rv["bank"]))
+    wall = {"type": "minecraft:pow", "base": corridor, "exponent": float(rv["power"])} \
+        if float(rv["power"]) != 1.0 else corridor
+    channel = df_add(y_to_offset(int(rv["bed_y"])), df_mul(wall, blocks(rv["rise"])))
+    out["height"] = {"type": "minecraft:cache", "input": {
+        "type": "minecraft:min", "left": f"{TERRAIN}/height_cliffs", "right": channel}}
+    return out
+
+
+def noise_files(noises: dict) -> dict[str, dict]:
+    """karstscape:<name> noise parameters ([noises] in the params file)."""
+    return {name: dict(cfg) for name, cfg in noises.items()}
 
 
 def dimension_type() -> dict:
@@ -626,6 +749,8 @@ def build(params: dict) -> dict[Path, str]:
     files[RES / "data" / NS / "dimension_type" / "overworld.json"] = dumps(dimension_type())
     for name, fn in terrain_functions(params["terrain"]).items():
         files[OUT_WG / "density_function" / "terrain" / f"{name}.json"] = dumps(fn)
+    for name, cfg in noise_files(params["noises"]).items():
+        files[OUT_WG / "noise" / f"{name}.json"] = dumps(cfg)
     deps = dependents_of_shapers()
 
     # biome (copy of the template biome with our climate values; vegetation etc. come in M3)

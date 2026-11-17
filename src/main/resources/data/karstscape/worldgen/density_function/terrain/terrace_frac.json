@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:sub",
+  "left": "karstscape:terrain/terrace_t",
+  "right": {
+    "type": "minecraft:floor",
+    "input": "karstscape:terrain/terrace_t"
+  }
+}
