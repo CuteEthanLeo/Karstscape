@@ -6,7 +6,7 @@
       "type": "minecraft:mul",
       "left": {
         "type": "minecraft:add",
-        "left": "minecraft:overworld/continents",
+        "left": "karstscape:terrain/continents",
         "right": 0.19
       },
       "right": 20.0

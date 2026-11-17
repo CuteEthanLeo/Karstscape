@@ -3,10 +3,10 @@
   "input": {
     "type": "minecraft:lerp",
     "alpha": "karstscape:karst_only/mask",
-    "first": "minecraft:overworld/factor",
+    "first": "karstscape:terrain/factor",
     "second": {
       "type": "minecraft:max",
-      "left": "minecraft:overworld/factor",
+      "left": "karstscape:terrain/factor",
       "right": 6.0
     }
   }

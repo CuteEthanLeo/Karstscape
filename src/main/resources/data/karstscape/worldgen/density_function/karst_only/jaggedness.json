@@ -3,7 +3,7 @@
   "input": {
     "type": "minecraft:lerp",
     "alpha": "karstscape:karst_only/mask",
-    "first": "minecraft:overworld/jaggedness",
+    "first": "karstscape:terrain/jaggedness",
     "second": 0.0
   }
 }

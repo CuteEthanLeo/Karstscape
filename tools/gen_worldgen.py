@@ -14,6 +14,11 @@ and assets/karstscape/lang is generated:
   data/minecraft/tags/worldgen/world_preset/normal.json   (adds our presets to the World Type button)
   assets/karstscape/lang/{en_us,zh_cn}.json
 
+Large-scale terrain (v0.2, [terrain]): the vanilla climate noises continents/erosion/ridges are copied into
+karstscape:terrain/ with a smaller xz_scale (larger continents and ranges; biomes follow because they are
+picked from the same router values), and the vanilla offset/factor/jaggedness splines are copied there with
+their values transformed (taller mountains, deeper oceans). Every preset builds on karstscape:terrain/*.
+
 How the region works (one parameter box per preset, used twice):
   * biome: the box is carved out of every vanilla multi-noise entry (reports/biome_parameters) and filled
     with karstscape:tower_karst, so the biome is exactly the box;
@@ -21,7 +26,7 @@ How the region works (one parameter box per preset, used twice):
     `factor` and `jaggedness` towards a flat plain. Every vanilla density function that depends on them
     (depth, sloped_cheese, final_density, preliminary_surface_level, chunk_surface_level) is copied into
     karstscape:<preset>/ with references rewritten, so biome depth, aquifers and surface rules all see the
-    same flattened terrain. Outside the mask the terrain is bit-for-bit vanilla.
+    same flattened terrain. Outside the mask the terrain is the large-scale terrain above.
 """
 from __future__ import annotations
 
@@ -43,17 +48,22 @@ RES = ks.ROOT / "src" / "main" / "resources"
 OUT_WG = RES / "data" / "karstscape" / "worldgen"
 
 NS = "karstscape"
+TERRAIN = f"{NS}:terrain"
 BIOME_ID = f"{NS}:tower_karst"
 CLIMATE = ["temperature", "humidity", "continentalness", "erosion", "weirdness"]
 # router density function behind each climate parameter (NoiseRouter.createClimateSampler)
 CLIMATE_DF = {
     "temperature": "minecraft:overworld/temperature",
     "humidity": "minecraft:overworld/vegetation",
-    "continentalness": "minecraft:overworld/continents",
-    "erosion": "minecraft:overworld/erosion",
-    "weirdness": "minecraft:overworld/ridges",
+    "continentalness": f"{TERRAIN}/continents",
+    "erosion": f"{TERRAIN}/erosion",
+    "weirdness": f"{TERRAIN}/ridges",
 }
 SHAPERS = ["offset", "factor", "jaggedness"]
+STRETCHED = ["continents", "erosion", "ridges"]  # climate noises copied with a larger horizontal scale
+# vanilla overworld functions replaced by karstscape:terrain/* copies (in every preset)
+TERRAIN_MAP = {f"minecraft:overworld/{n}": f"{TERRAIN}/{n}"
+               for n in STRETCHED + ["ridges_folded"] + SHAPERS}
 LIMIT = 2.0  # multi-noise parameter range is [-2, 2]
 
 
@@ -216,6 +226,109 @@ def retarget_heights(obj, counts: dict):
 RETARGET_EXPECTED = {"depth": 2, "top_slide": 2, "surface_search": 1}
 
 
+def piecewise(points: list) -> tuple:
+    """Piecewise-linear f and f' through [[x, y], ...] (sorted by x), extrapolated with the end slopes."""
+    pts = [(float(x), float(y)) for x, y in points]
+    if len(pts) < 2 or any(b[0] <= a[0] for a, b in zip(pts, pts[1:])):
+        raise SystemExit(f"curve needs >= 2 points with increasing x: {points}")
+
+    def seg(x):
+        for k in range(1, len(pts) - 1):
+            if x < pts[k][0]:
+                return k - 1
+        return len(pts) - 2
+
+    def slope(x):
+        k = seg(x)
+        (x0, y0), (x1, y1) = pts[k], pts[k + 1]
+        return (y1 - y0) / (x1 - x0)
+
+    def f(x):
+        k = seg(x)
+        return pts[k][1] + (x - pts[k][0]) * slope(x)
+
+    return f, slope
+
+
+def spline_leaves(sp: dict) -> list[float]:
+    out = []
+    for pt in sp["points"]:
+        v = pt["value"]
+        out += spline_leaves(v) if isinstance(v, dict) else [float(v)]
+    return out
+
+
+def map_spline(sp: dict, f, df) -> None:
+    """In place: leaf values v -> f(v); derivatives scaled by df at the point value (mean leaf if nested)."""
+    for pt in sp["points"]:
+        v = pt["value"]
+        if isinstance(v, dict):
+            leaves = spline_leaves(v)
+            pt["derivative"] = round(pt["derivative"] * df(sum(leaves) / len(leaves)), 6)
+            map_spline(v, f, df)
+        else:
+            pt["derivative"] = round(pt["derivative"] * df(float(v)), 6)
+            pt["value"] = round(f(float(v)), 6)
+
+
+def the_spline(df_json: dict) -> dict:
+    """The single top-level minecraft:spline node of a vanilla shaper (its `spline` object)."""
+    found = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            if o.get("type") == "minecraft:spline":
+                found.append(o["spline"])
+                return
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+
+    walk(df_json)
+    if len(found) != 1:
+        raise SystemExit("unexpected vanilla shaper shape; update the_spline()")
+    return found[0]
+
+
+OFFSET_SEA = -0.50375  # vanilla offset = add(-0.50375, spline): spline value 0 is ~ sea level
+
+
+def offset_curve(t: dict) -> tuple:
+    """f, f' on spline values: vanilla height above sea (128 * value) -> [terrain].offset_curve -> value."""
+    blocks = float(WORLD["depth_blocks"])
+    f, df = piecewise(t["offset_curve"])
+    return (lambda v: f(v * blocks) / blocks), (lambda v: df(v * blocks))
+
+
+def terrain_functions(t: dict) -> dict[str, dict]:
+    """karstscape:terrain/*: stretched climate noises and transformed shaper splines."""
+    out = {}
+    for n in STRETCHED:
+        fn = load(VWG / "density_function" / "overworld" / f"{n}.json")
+        noise = fn["input"] if fn.get("type") == "minecraft:cache" else fn
+        if noise.get("type") != "minecraft:noise":
+            raise SystemExit(f"unexpected vanilla overworld/{n} shape; update terrain_functions()")
+        noise["xz_scale"] = noise["xz_scale"] / float(t[f"{n}_stretch"])
+        bias = float(t.get(f"{n}_bias", 0.0))
+        if bias:  # keep the cache outermost (the router and splines read the cached value)
+            fn = {"type": "minecraft:cache", "input": df_add(noise, bias)}
+        out[n] = fn
+    out["ridges_folded"] = rewrite_refs(load(VWG / "density_function" / "overworld" / "ridges_folded.json"),
+                                        TERRAIN_MAP)
+    f, df = offset_curve(t)
+    for n, (fv, dfv) in {
+        "offset": (f, df),
+        "factor": ((lambda v: v * float(t["factor_scale"])), (lambda v: 1.0)),
+        "jaggedness": ((lambda v: v * float(t["jaggedness_scale"])), (lambda v: 1.0)),
+    }.items():
+        fn = rewrite_refs(load(VWG / "density_function" / "overworld" / f"{n}.json"), TERRAIN_MAP)
+        map_spline(the_spline(fn), fv, dfv)
+        out[n] = fn
+    return out
+
+
 def dimension_type() -> dict:
     dt = load(VANILLA / "data" / "minecraft" / "dimension_type" / "overworld.json")
     dt["min_y"] = int(WORLD["min_y"])
@@ -227,7 +340,7 @@ def dimension_type() -> dict:
     return dt
 
 
-RIDGES = "minecraft:overworld/ridges"
+RIDGES = f"{TERRAIN}/ridges"
 
 
 def abs_ridges_ramp(start: float, width: float) -> dict:
@@ -255,14 +368,14 @@ def shaper_functions(preset: str, plain: dict, river: dict) -> dict[str, dict]:
     plain_terrain = {"type": "minecraft:max", "left": lowered, "right": floor}
     return {
         "offset": {"type": "minecraft:cache", "input": {
-            "type": "minecraft:lerp", "alpha": mask, "first": "minecraft:overworld/offset",
-            "second": plain_terrain}},
+            "type": "minecraft:lerp", "alpha": mask, "first": f"{TERRAIN}/offset",
+            "second": rewrite_refs(plain_terrain, TERRAIN_MAP)}},
         "factor": {"type": "minecraft:cache", "input": {
-            "type": "minecraft:lerp", "alpha": mask, "first": "minecraft:overworld/factor",
-            "second": {"type": "minecraft:max", "left": "minecraft:overworld/factor",
+            "type": "minecraft:lerp", "alpha": mask, "first": f"{TERRAIN}/factor",
+            "second": {"type": "minecraft:max", "left": f"{TERRAIN}/factor",
                        "right": float(plain["min_factor"])}}},
         "jaggedness": {"type": "minecraft:cache", "input": {
-            "type": "minecraft:lerp", "alpha": mask, "first": "minecraft:overworld/jaggedness", "second": 0.0}},
+            "type": "minecraft:lerp", "alpha": mask, "first": f"{TERRAIN}/jaggedness", "second": 0.0}},
     }
 
 
@@ -272,20 +385,22 @@ SPAWN_KEYS = {"temperature": "minecraft:overworld/temperature", "humidity": "min
 
 
 def spawn_target(vanilla: list[dict], box: dict, preset: str, spawn: dict) -> list[dict]:
-    """Spawn search ranges that keep the world spawn off karst towers."""
+    """Spawn search ranges that keep the world spawn off karst towers.
+
+    Entries are keyed by density function id: read with the vanilla ids, written with ours (CLIMATE_DF)."""
     if preset == "karst_only":
         lo, hi = spawn["karst_only_continentalness"]
         out = []
         for e in vanilla:
-            e = dict(e)
-            e[SPAWN_KEYS["continentalness"]] = [float(lo), float(hi)]
+            e = {TERRAIN_MAP.get(k, k): v for k, v in e.items()}
+            e[CLIMATE_DF["continentalness"]] = [float(lo), float(hi)]
             out.append(e)
         return out
     out = []
     for e in vanilla:
         params = {p: e.get(SPAWN_KEYS[p], [-LIMIT, LIMIT]) for p in CLIMATE}
         for piece in carve(params, box):
-            out.append({SPAWN_KEYS[p]: [float(piece[p][0]), float(piece[p][1])] for p in CLIMATE})
+            out.append({CLIMATE_DF[p]: [float(piece[p][0]), float(piece[p][1])] for p in CLIMATE})
     return out
 
 
@@ -509,6 +624,8 @@ def build(params: dict) -> dict[Path, str]:
     WORLD.update(params["world"])
     plain = params["plain"]
     files[RES / "data" / NS / "dimension_type" / "overworld.json"] = dumps(dimension_type())
+    for name, fn in terrain_functions(params["terrain"]).items():
+        files[OUT_WG / "density_function" / "terrain" / f"{name}.json"] = dumps(fn)
     deps = dependents_of_shapers()
 
     # biome (copy of the template biome with our climate values; vegetation etc. come in M3)
@@ -536,7 +653,8 @@ def build(params: dict) -> dict[Path, str]:
     for preset, cfg in presets.items():
         box = preset_box(cfg)
         edge = float(cfg["edge"])
-        mapping = {f"minecraft:overworld/{s}": f"{NS}:{preset}/{s}" for s in SHAPERS}
+        mapping = dict(TERRAIN_MAP)  # stretched climate everywhere ...
+        mapping.update({f"minecraft:overworld/{s}": f"{NS}:{preset}/{s}" for s in SHAPERS})  # ... karst shapers
         mapping.update({d: f"{NS}:{preset}/{d.split('/', 1)[1]}" for d in deps})
 
         dfdir = OUT_WG / "density_function" / preset

@@ -41,7 +41,7 @@
           "type": "minecraft:mul",
           "left": {
             "type": "minecraft:add",
-            "left": "minecraft:overworld/continents",
+            "left": "karstscape:terrain/continents",
             "right": -0.18
           },
           "right": 20.0
@@ -56,7 +56,7 @@
         "type": "minecraft:mul",
         "left": {
           "type": "minecraft:add",
-          "left": "minecraft:overworld/erosion",
+          "left": "karstscape:terrain/erosion",
           "right": 0.2225
         },
         "right": 20.0

@@ -16,13 +16,30 @@
 [world]
 min_y = -64                # multiple of 16; kept vanilla so ores, deepslate, caves and ancient cities are unchanged
 height = 512               # multiple of 16 -> build limit y 447 (vanilla 384 -> y 319)
-cloud_height = 192.33      # vanilla
+cloud_height = 260.33     # vanilla 192.33; mountain tops rise through the clouds
 # depth = (depth_zero_y - y) / depth_blocks + offset; the surface is where depth = 0 (vanilla 128 / 128)
 depth_zero_y = 128
 depth_blocks = 128
-top_slide = [240, 256]     # terrain fades to air between these y (vanilla 240..256)
+top_slide = [416, 440]     # terrain fades to air between these y (vanilla 240..256)
 classic_en = "Classic (vanilla)"
 classic_zh = "原版地形"
+
+# ---------------------------------------------------------------- terrain --
+# Large-scale shape of the whole Overworld (SPEC §10, M7), applied to copies of the vanilla functions in
+# karstscape:terrain/. Karst regions and their plains are built on top of it.
+[terrain]
+# horizontal stretch of the vanilla climate noises (2.5 = features 2.5x as wide). Biomes follow: they are
+# picked from the same values. Temperature and humidity keep the vanilla scale.
+continents_stretch = 4.0     # land masses and oceans
+erosion_stretch = 2.0        # flat vs mountainous areas
+ridges_stretch = 2.0         # peaks / valleys / rivers (weirdness)
+continents_bias = 0.08       # added to continentalness: more land (vanilla coast starts at -0.19..-0.11)
+# offset spline: vanilla height above sea level (blocks; 128 x spline value) -> new height above sea.
+# Piecewise linear, extrapolated with the end slopes; derivatives are scaled by the local slope.
+# Vanilla spline values span about -38 .. +192 blocks (deep ocean floor ~y25, highest offset ~y255).
+offset_curve = [[-40, -76], [0, 0], [16, 18], [64, 112], [128, 250], [192, 340]]
+factor_scale = 1.0           # x vanilla factor (lower = stronger 3D noise, more overhangs)
+jaggedness_scale = 1.4       # x vanilla jaggedness (jagged peak noise on mountain ridges)
 
 # ---------------------------------------------------------------- regions --
 # The biome karstscape:tower_karst occupies exactly this box. The terrain mask is 1 inside the box minus

@@ -159,6 +159,7 @@ public final class TerrainExport {
 		Files.createDirectories(outDir);
 		Grid g = new Grid(n, step, x0, z0, seaLevel, surface, floor, slope, maskValue, biome, sortedNames);
 		writeHeight(g);
+		writeTerrain(g);
 		writeBiome(g);
 		writeSlope(g);
 		writeMask(g);
@@ -250,6 +251,50 @@ public final class TerrainExport {
 		int depth = g.surface()[i] - g.floor()[i];
 		int b = Math.max(70, 200 - depth * 4);
 		return (20 << 16) | (40 << 8) | b;
+	}
+
+	/** Hypsometric colour for land surface height (y 64 .. 448). */
+	private static final int[][] HYPSO = {
+			{64, 0x3c7a3a}, {100, 0x7fa65a}, {150, 0xc8c27a}, {220, 0x9a7650}, {300, 0x8a8a8a}, {380, 0xe8e8e8}, {448, 0xffffff}};
+
+	private static int hypso(int y) {
+		if (y <= HYPSO[0][0]) return HYPSO[0][1];
+		for (int k = 1; k < HYPSO.length; k++) {
+			if (y <= HYPSO[k][0]) {
+				double t = (y - HYPSO[k - 1][0]) / (double) (HYPSO[k][0] - HYPSO[k - 1][0]);
+				int a = HYPSO[k - 1][1], b = HYPSO[k][1];
+				int r = (int) Math.round(((a >> 16) & 255) * (1 - t) + ((b >> 16) & 255) * t);
+				int gg = (int) Math.round(((a >> 8) & 255) * (1 - t) + ((b >> 8) & 255) * t);
+				int bb = (int) Math.round((a & 255) * (1 - t) + (b & 255) * t);
+				return (r << 16) | (gg << 8) | bb;
+			}
+		}
+		return HYPSO[HYPSO.length - 1][1];
+	}
+
+	private static int deepWater(Grid g, int i) {
+		int depth = g.seaLevel() - g.floor()[i];
+		int b = Math.max(60, 220 - depth * 2);
+		return (15 << 16) | ((b / 3) << 8) | b;
+	}
+
+	private void writeTerrain(Grid g) throws IOException {
+		BufferedImage img = canvas(g);
+		for (int i = 0; i < g.n() * g.n(); i++) {
+			img.setRGB(i % g.n(), i / g.n(), g.water(i) ? deepWater(g, i) : hypso(g.surface()[i]));
+		}
+		Graphics2D gr = legend(img, g, "terrain (land y 64..448, water by depth)");
+		int lx = g.n() + 10;
+		for (int y = 448; y >= 64; y -= 2) {
+			gr.setColor(new Color(hypso(y)));
+			gr.fillRect(lx, 90 + (448 - y) / 2, 24, 1);
+		}
+		gr.setColor(Color.WHITE);
+		for (int y = 64; y <= 448; y += 64) {
+			gr.drawString("y " + y, lx + 30, 90 + (448 - y) / 2 + 4);
+		}
+		gr.dispose();
+		ImageIO.write(img, "png", outDir.resolve("terrain.png").toFile());
 	}
 
 	private void writeHeight(Grid g) throws IOException {
@@ -451,6 +496,7 @@ public final class TerrainExport {
 		heights.add("karst_edge_mask_0_1", percentiles(hEdge));
 		heights.add("outside_mask", percentiles(hOut));
 		o.add("surface_height", heights);
+		o.add("terrain", terrain(g));
 
 		JsonObject slopes = new JsonObject();
 		slopes.add("land_deg", percentilesF(sLand));
@@ -474,6 +520,61 @@ public final class TerrainExport {
 		for (int k : order) biomes.addProperty(g.biomeNames()[k], ratio(counts[k], size));
 		o.add("biome_fractions", biomes);
 		return o;
+	}
+
+	/** Large-scale terrain (v0.2): land height histogram, ocean floor depth, highest samples. */
+	private static JsonObject terrain(Grid g) {
+		int size = g.n() * g.n();
+		List<Integer> oceanFloor = new ArrayList<>();
+		Map<String, Integer> hist = new LinkedHashMap<>();
+		hist.put("lt64", 0);
+		for (int y = 64; y < 448; y += 32) hist.put(y + "_" + (y + 31), 0);
+		int best = 0;
+		for (int i = 0; i < size; i++) {
+			if (g.water(i)) {
+				oceanFloor.add(g.floor()[i]);
+				continue;
+			}
+			int y = g.surface()[i];
+			String key = y < 64 ? "lt64" : (64 + (Math.min(y, 447) - 64) / 32 * 32) + "_" + (64 + (Math.min(y, 447) - 64) / 32 * 32 + 31);
+			hist.merge(key, 1, Integer::sum);
+			if (y > g.surface()[best] || g.water(best)) best = i;
+		}
+		JsonObject o = new JsonObject();
+		JsonObject h = new JsonObject();
+		hist.forEach(h::addProperty);
+		o.add("land_height_histogram", h);
+		o.add("water_floor", percentiles(oceanFloor));
+		o.addProperty("highest_x", g.x0() + (best % g.n()) * g.step());
+		o.addProperty("highest_z", g.z0() + (best / g.n()) * g.step());
+		o.addProperty("highest_y", g.surface()[best]);
+		o.add("peaks", peaks(g, 5, 1536));
+		return o;
+	}
+
+	/** Up to `count` highest land samples, each at least `minSep` blocks from the ones already chosen. */
+	private static com.google.gson.JsonArray peaks(Grid g, int count, int minSep) {
+		Integer[] order = new Integer[g.n() * g.n()];
+		for (int i = 0; i < order.length; i++) order[i] = i;
+		java.util.Arrays.sort(order, (a, b) -> Integer.compare(g.surface()[b], g.surface()[a]));
+		List<int[]> chosen = new ArrayList<>();
+		for (int i : order) {
+			if (chosen.size() >= count) break;
+			if (g.water(i)) continue;
+			int x = g.x0() + (i % g.n()) * g.step(), z = g.z0() + (i / g.n()) * g.step();
+			boolean far = chosen.stream().allMatch(c -> (long) (c[0] - x) * (c[0] - x) + (long) (c[1] - z) * (c[1] - z)
+					>= (long) minSep * minSep);
+			if (far) chosen.add(new int[]{x, z, g.surface()[i]});
+		}
+		com.google.gson.JsonArray a = new com.google.gson.JsonArray();
+		for (int[] c : chosen) {
+			JsonObject e = new JsonObject();
+			e.addProperty("x", c[0]);
+			e.addProperty("z", c[1]);
+			e.addProperty("y", c[2]);
+			a.add(e);
+		}
+		return a;
 	}
 
 	private static int countMaskOutsideBiome(Grid g, int karst) {

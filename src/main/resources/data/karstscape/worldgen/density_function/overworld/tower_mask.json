@@ -11,7 +11,7 @@
           "type": "minecraft:add",
           "left": {
             "type": "minecraft:abs",
-            "input": "minecraft:overworld/ridges"
+            "input": "karstscape:terrain/ridges"
           },
           "right": -0.12
         },

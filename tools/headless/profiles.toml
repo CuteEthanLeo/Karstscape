@@ -41,7 +41,8 @@ seed = "20260915"
 level_type = "minecraft:normal"
 level_name = "ks_default"
 baseline = "vanilla"
-collect = ["karstscape_export/**/*.json", "karstscape_export/**/*.png"]
+# stats.json, not timing.json (wall-clock times differ between --repeat runs)
+collect = ["karstscape_export/**/stats.json", "karstscape_export/**/*.png"]
 
 [[default.commands]]
 send = "seed"
@@ -99,6 +100,19 @@ send = "karstscape export 12288 0 0 64"
 expect = 'Karstscape export (done: \S*_r12288_s64\b|failed)'
 timeout = 900
 
+[tune_classic]
+# the same 24 km export of the vanilla world (karstscape:classic), for comparison with tune
+seed = "20260915"
+level_type = "karstscape:classic"
+level_name = "ks_tune_classic"
+baseline = "vanilla"
+collect = []
+
+[[tune_classic.commands]]
+send = "karstscape export 12288 0 0 64"
+expect = 'Karstscape export (done: \S*_r12288_s64\b|failed)'
+timeout = 900
+
 [towers]
 # karst_only world, block-exact export of one 1 km square: tower statistics (SPEC §3.2 targets)
 seed = "20260915"
@@ -130,6 +144,18 @@ baseline = "vanilla"
 collect = []
 
 [[bench_vanilla.commands]]
+send = "karstscape bench 400 0 0"
+expect = 'Karstscape bench done'
+timeout = 1800
+
+[bench_default]
+seed = "20260915"
+level_type = "minecraft:normal"
+level_name = "ks_bench_default"
+baseline = "vanilla"
+collect = []
+
+[[bench_default.commands]]
 send = "karstscape bench 400 0 0"
 expect = 'Karstscape bench done'
 timeout = 1800

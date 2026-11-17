@@ -11,7 +11,7 @@
       "left": {
         "type": "minecraft:sub",
         "left": -0.225,
-        "right": "minecraft:overworld/erosion"
+        "right": "karstscape:terrain/erosion"
       },
       "right": {
         "type": "minecraft:max",
@@ -57,11 +57,11 @@
       "label": "V"
     },
     {
-      "function": "minecraft:overworld/continents",
+      "function": "karstscape:terrain/continents",
       "label": "C"
     },
     {
-      "function": "minecraft:overworld/erosion",
+      "function": "karstscape:terrain/erosion",
       "label": "E"
     },
     {
@@ -69,7 +69,7 @@
       "label": "D"
     },
     {
-      "function": "minecraft:overworld/ridges",
+      "function": "karstscape:terrain/ridges",
       "label": "W"
     },
     {
@@ -83,7 +83,7 @@
               "type": "minecraft:add",
               "left": {
                 "type": "minecraft:abs",
-                "input": "minecraft:overworld/ridges"
+                "input": "karstscape:terrain/ridges"
               },
               "right": -0.6666667
             }
@@ -110,26 +110,26 @@
   },
   "noise_router": {
     "chunk_surface_level": "karstscape:karst_only/chunk_surface_level",
-    "continents": "minecraft:overworld/continents",
+    "continents": "karstscape:terrain/continents",
     "depth": "karstscape:karst_only/depth",
-    "erosion": "minecraft:overworld/erosion",
+    "erosion": "karstscape:terrain/erosion",
     "final_density": "karstscape:karst_only/final_density",
-    "ridges": "minecraft:overworld/ridges",
+    "ridges": "karstscape:terrain/ridges",
     "temperature": "minecraft:overworld/temperature",
     "vegetation": "minecraft:overworld/vegetation"
   },
   "sea_level": 63,
   "spawn_target": [
     {
-      "minecraft:overworld/continents": [
+      "karstscape:terrain/continents": [
         -0.19,
         -0.18
       ],
-      "minecraft:overworld/erosion": [
+      "karstscape:terrain/erosion": [
         -1.0,
         1.0
       ],
-      "minecraft:overworld/ridges": [
+      "karstscape:terrain/ridges": [
         -1.0,
         -0.16
       ],
@@ -143,15 +143,15 @@
       ]
     },
     {
-      "minecraft:overworld/continents": [
+      "karstscape:terrain/continents": [
         -0.19,
         -0.18
       ],
-      "minecraft:overworld/erosion": [
+      "karstscape:terrain/erosion": [
         -1.0,
         1.0
       ],
-      "minecraft:overworld/ridges": [
+      "karstscape:terrain/ridges": [
         0.16,
         1.0
       ],

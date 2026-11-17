@@ -3,14 +3,14 @@
   "input": {
     "type": "minecraft:lerp",
     "alpha": "karstscape:overworld/mask",
-    "first": "minecraft:overworld/offset",
+    "first": "karstscape:terrain/offset",
     "second": {
       "type": "minecraft:max",
       "left": {
         "type": "minecraft:min",
         "left": {
           "type": "minecraft:min",
-          "left": "minecraft:overworld/offset",
+          "left": "karstscape:terrain/offset",
           "right": {
             "type": "minecraft:add",
             "left": -0.421875,
@@ -39,7 +39,7 @@
                   "type": "minecraft:add",
                   "left": {
                     "type": "minecraft:abs",
-                    "input": "minecraft:overworld/ridges"
+                    "input": "karstscape:terrain/ridges"
                   },
                   "right": -0.03
                 },
@@ -65,7 +65,7 @@
                 "type": "minecraft:add",
                 "left": {
                   "type": "minecraft:abs",
-                  "input": "minecraft:overworld/ridges"
+                  "input": "karstscape:terrain/ridges"
                 },
                 "right": -0.08
               },

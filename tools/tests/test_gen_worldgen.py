@@ -62,6 +62,55 @@ class HeightTests(unittest.TestCase):
         self.assertEqual(src["left"]["to_coordinate"], 320)  # input not mutated
 
 
+class SplineTests(unittest.TestCase):
+    def test_piecewise_interpolates_and_extrapolates(self):
+        f, df = gw.piecewise([[0, 0], [10, 20], [20, 25]])
+        self.assertAlmostEqual(f(5), 10)
+        self.assertAlmostEqual(f(15), 22.5)
+        self.assertAlmostEqual(f(-5), -10)  # first slope
+        self.assertAlmostEqual(f(30), 30)   # last slope
+        self.assertAlmostEqual(df(12), 0.5)
+
+    def test_piecewise_rejects_unsorted(self):
+        with self.assertRaises(SystemExit):
+            gw.piecewise([[0, 0], [0, 1]])
+
+    def test_map_spline_nested(self):
+        sp = {"coordinate": "c", "points": [
+            {"location": 0.0, "derivative": 1.0, "value": 1.0},
+            {"location": 1.0, "derivative": 2.0, "value": {"coordinate": "d", "points": [
+                {"location": 0.0, "derivative": 0.5, "value": 2.0}]}}]}
+        gw.map_spline(sp, lambda v: v * 3, lambda v: 3.0)
+        self.assertEqual(sp["points"][0]["value"], 3.0)
+        self.assertEqual(sp["points"][0]["derivative"], 3.0)
+        self.assertEqual(sp["points"][1]["derivative"], 6.0)
+        self.assertEqual(sp["points"][1]["value"]["points"][0]["value"], 6.0)
+        self.assertEqual(sp["points"][1]["value"]["points"][0]["derivative"], 1.5)
+
+
+@unittest.skipUnless((gw.VANILLA / "MANIFEST.json").is_file(), "reference/vanilla-26.3 missing")
+class TerrainParamTests(unittest.TestCase):
+    """The configured [terrain] curve keeps the terrain inside the world."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.params = tomllib.loads(gw.PARAMS.read_text(encoding="utf-8"))
+        with_world(cls.params["world"])
+
+    def test_offset_curve_monotone_and_sea_fixed(self):
+        f, _ = gw.offset_curve(self.params["terrain"])
+        xs = [x / 100 for x in range(-40, 160)]
+        ys = [f(x) for x in xs]
+        self.assertTrue(all(b > a for a, b in zip(ys, ys[1:])))
+        self.assertAlmostEqual(f(0.0), 0.0)  # the coast stays at sea level
+
+    def test_highest_offset_below_top_slide(self):
+        offset = gw.terrain_functions(self.params["terrain"])["offset"]
+        top = max(gw.spline_leaves(gw.the_spline(offset)))
+        y = float(gw.WORLD["depth_zero_y"]) + (top + gw.OFFSET_SEA) * float(gw.WORLD["depth_blocks"])
+        self.assertLess(y, self.params["world"]["top_slide"][0])
+
+
 @unittest.skipUnless((gw.VANILLA / "MANIFEST.json").is_file(), "reference/vanilla-26.3 missing")
 class BuildTests(unittest.TestCase):
     @classmethod
