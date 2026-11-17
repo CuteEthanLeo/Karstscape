@@ -1,7 +1,7 @@
 {
   "replace": false,
   "values": [
-    "karstscape:karstscape",
+    "karstscape:classic",
     "karstscape:karst_only"
   ]
 }

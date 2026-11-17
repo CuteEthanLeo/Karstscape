@@ -37,6 +37,8 @@ public final class KarstCommands {
 						.executes(ctx -> find(ctx.getSource())))
 				.then(Commands.literal("spawn")
 						.executes(ctx -> spawn(ctx.getSource())))
+				.then(Commands.literal("info")
+						.executes(ctx -> info(ctx.getSource())))
 				.then(Commands.literal("probe")
 						.then(Commands.argument("x", IntegerArgumentType.integer())
 								.then(Commands.argument("z", IntegerArgumentType.integer())
@@ -66,6 +68,17 @@ public final class KarstCommands {
 												.executes(ctx -> export(ctx, true, false))
 												.then(Commands.argument("step", IntegerArgumentType.integer(1, 4096))
 														.executes(ctx -> export(ctx, true, true))))))));
+	}
+
+	/** Which world generator is active: noise settings, dimension type, build height, sea level. */
+	private static int info(CommandSourceStack source) {
+		ServerLevel level = source.getLevel();
+		var gen = level.getChunkSource().getGenerator();
+		String type = level.dimensionTypeRegistration().unwrapKey().map(k -> k.identifier().toString()).orElse("inline");
+		String r = "settings %s, dimension_type %s, y %d..%d, sea level %d".formatted(WorldChecks.settingsId(gen), type,
+				level.getMinY(), level.getMaxY(), gen.getSeaLevel());
+		source.sendSuccess(() -> Component.literal("Karstscape info: " + r), false);
+		return 1;
 	}
 
 	private static int spawn(CommandSourceStack source) {

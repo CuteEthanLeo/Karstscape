@@ -38,12 +38,12 @@
                   "first": -0.078125,
                   "second": {
                     "type": "minecraft:range_choice",
-                    "input": "karstscape:karstscape/sloped_cheese",
+                    "input": "karstscape:overworld/sloped_cheese",
                     "max_exclusive": 1.5625,
                     "min_inclusive": -1000000.0,
                     "when_in_range": {
                       "type": "minecraft:min",
-                      "left": "karstscape:karstscape/sloped_cheese",
+                      "left": "karstscape:overworld/sloped_cheese",
                       "right": {
                         "type": "minecraft:mul",
                         "left": "minecraft:overworld/caves/entrances",
@@ -94,7 +94,7 @@
                                   "type": "minecraft:add",
                                   "left": {
                                     "type": "minecraft:mul",
-                                    "left": "karstscape:karstscape/sloped_cheese",
+                                    "left": "karstscape:overworld/sloped_cheese",
                                     "right": -0.64
                                   },
                                   "right": 1.5
@@ -131,7 +131,7 @@
       },
       "right": "minecraft:overworld/caves/noodle"
     },
-    "right": "karstscape:karstscape/towers"
+    "right": "karstscape:overworld/towers"
   },
   "right": {
     "type": "minecraft:beardifier"

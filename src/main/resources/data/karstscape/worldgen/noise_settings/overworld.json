@@ -17,7 +17,7 @@
         "type": "minecraft:max",
         "left": {
           "type": "minecraft:sub",
-          "left": "karstscape:karstscape/depth",
+          "left": "karstscape:overworld/depth",
           "right": 0.9
         },
         "right": 0.0
@@ -41,11 +41,11 @@
       "xz_scale": 1.0,
       "y_scale": 1.0
     },
-    "surface_level": "karstscape:karstscape/preliminary_surface_level"
+    "surface_level": "karstscape:overworld/preliminary_surface_level"
   },
   "debug_functions": [
     {
-      "function": "karstscape:karstscape/final_density",
+      "function": "karstscape:overworld/final_density",
       "label": "N"
     },
     {
@@ -65,7 +65,7 @@
       "label": "E"
     },
     {
-      "function": "karstscape:karstscape/depth",
+      "function": "karstscape:overworld/depth",
       "label": "D"
     },
     {
@@ -95,7 +95,7 @@
       "label": "PV"
     },
     {
-      "function": "karstscape:karstscape/preliminary_surface_level",
+      "function": "karstscape:overworld/preliminary_surface_level",
       "label": "PS"
     }
   ],
@@ -105,15 +105,15 @@
   "legacy_random_source": false,
   "material_rule": "karstscape:overworld",
   "noise": {
-    "height": 384,
+    "height": 512,
     "min_y": -64
   },
   "noise_router": {
-    "chunk_surface_level": "karstscape:karstscape/chunk_surface_level",
+    "chunk_surface_level": "karstscape:overworld/chunk_surface_level",
     "continents": "minecraft:overworld/continents",
-    "depth": "karstscape:karstscape/depth",
+    "depth": "karstscape:overworld/depth",
     "erosion": "minecraft:overworld/erosion",
-    "final_density": "karstscape:karstscape/final_density",
+    "final_density": "karstscape:overworld/final_density",
     "ridges": "minecraft:overworld/ridges",
     "temperature": "minecraft:overworld/temperature",
     "vegetation": "minecraft:overworld/vegetation"

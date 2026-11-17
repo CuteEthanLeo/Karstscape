@@ -2,7 +2,7 @@
   "type": "minecraft:cache",
   "input": {
     "type": "minecraft:lerp",
-    "alpha": "karstscape:karstscape/mask",
+    "alpha": "karstscape:overworld/mask",
     "first": "minecraft:overworld/factor",
     "second": {
       "type": "minecraft:max",

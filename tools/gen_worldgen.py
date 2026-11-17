@@ -3,11 +3,14 @@
   python tools/gen_worldgen.py           # write generated files
   python tools/gen_worldgen.py --check   # exit 1 if any generated file is missing or differs
 
-Generated (do not edit by hand; edit karst_params.toml and rerun):
+Generated (do not edit by hand; edit karst_params.toml and rerun). Everything under src/main/resources/data
+and assets/karstscape/lang is generated:
+  data/karstscape/dimension_type/overworld.json          (taller overworld, [world])
   data/karstscape/worldgen/biome/tower_karst.json
   data/karstscape/worldgen/density_function/<preset>/{mask,offset,factor,jaggedness,...}.json
   data/karstscape/worldgen/noise_settings/<preset>.json
-  data/karstscape/worldgen/world_preset/<preset>.json
+  data/karstscape/worldgen/world_preset/{classic,<preset>}.json
+  data/minecraft/worldgen/world_preset/normal.json       (the default world type -> presets.overworld)
   data/minecraft/tags/worldgen/world_preset/normal.json   (adds our presets to the World Type button)
   assets/karstscape/lang/{en_us,zh_cn}.json
 
@@ -160,9 +163,68 @@ def mask_function(box: dict, edge: float) -> dict:
     return {"type": "minecraft:cache", "input": acc}
 
 
+WORLD: dict = {}  # [world] from karst_params.toml, set in build()
+
+
+def world_top() -> int:
+    """First y above the world (vanilla 320)."""
+    return int(WORLD["min_y"]) + int(WORLD["height"])
+
+
 def y_to_offset(y: float) -> float:
-    """Inverse of overworld/depth: depth = gradient(y: -64 -> 1.5, 320 -> -1.5) + offset; surface at depth 0."""
-    return (y + 64.0) / 128.0 - 1.5
+    """Inverse of depth = (depth_zero_y - y) / depth_blocks + offset: the offset that puts the surface at y.
+
+    Vanilla: zero 128, 128 blocks per unit (gradient -64 -> 1.5, 320 -> -1.5)."""
+    return (y - float(WORLD["depth_zero_y"])) / float(WORLD["depth_blocks"])
+
+
+def depth_gradient() -> dict:
+    """The y part of `depth` over the whole world height (gradient clamps outside its two coordinates)."""
+    lo, hi = int(WORLD["min_y"]), world_top()
+    return {"type": "minecraft:gradient", "axis": "y", "from_coordinate": lo, "from_value": -y_to_offset(lo),
+            "to_coordinate": hi, "to_value": -y_to_offset(hi)}
+
+
+def retarget_heights(obj, counts: dict):
+    """Rewrite the vanilla height-tied constants of a copied overworld density function for [world].
+
+    * the depth gradient (-64 -> 1.5, 320 -> -1.5) spans the whole world (it clamps at its ends);
+    * the top slide (fade to air from 240 to 256) moves to [world].top_slide;
+    * find_top_surface searches from the world top (vanilla clamps the upper bound to 320).
+    """
+    if isinstance(obj, list):
+        return [retarget_heights(v, counts) for v in obj]
+    if not isinstance(obj, dict):
+        return obj
+    obj = {k: retarget_heights(v, counts) for k, v in obj.items()}
+    if obj.get("type") == "minecraft:gradient" and obj.get("axis") == "y":
+        key = (obj["from_coordinate"], obj["from_value"], obj["to_coordinate"], obj["to_value"])
+        if key == (-64, 1.5, 320, -1.5):
+            counts["depth"] = counts.get("depth", 0) + 1
+            return depth_gradient()
+        if key == (240, 1.0, 256, 0.0):
+            counts["top_slide"] = counts.get("top_slide", 0) + 1
+            a, b = (int(v) for v in WORLD["top_slide"])
+            return dict(obj, from_coordinate=a, to_coordinate=b)
+    if obj.get("type") == "minecraft:clamp" and obj.get("min") == -40.0 and obj.get("max") == 320.0:
+        counts["surface_search"] = counts.get("surface_search", 0) + 1
+        return dict(obj, max=float(world_top()))
+    return obj
+
+
+# expected rewrites over all copied dependents (vanilla 26.3: depth + preliminary_surface_level, ...)
+RETARGET_EXPECTED = {"depth": 2, "top_slide": 2, "surface_search": 1}
+
+
+def dimension_type() -> dict:
+    dt = load(VANILLA / "data" / "minecraft" / "dimension_type" / "overworld.json")
+    dt["min_y"] = int(WORLD["min_y"])
+    dt["height"] = int(WORLD["height"])
+    dt["logical_height"] = int(WORLD["height"])
+    dt["attributes"]["minecraft:visual/cloud_height"] = float(WORLD["cloud_height"])
+    if dt["height"] % 16 or dt["min_y"] % 16:
+        raise SystemExit("[world] min_y and height must be multiples of 16 (DimensionType)")
+    return dt
 
 
 RIDGES = "minecraft:overworld/ridges"
@@ -443,7 +505,10 @@ def rewrite_refs(obj, mapping: dict[str, str]):
 
 def build(params: dict) -> dict[Path, str]:
     files: dict[Path, str] = {}
+    WORLD.clear()
+    WORLD.update(params["world"])
     plain = params["plain"]
+    files[RES / "data" / NS / "dimension_type" / "overworld.json"] = dumps(dimension_type())
     deps = dependents_of_shapers()
 
     # biome (copy of the template biome with our climate values; vegetation etc. come in M3)
@@ -461,6 +526,13 @@ def build(params: dict) -> dict[Path, str]:
     normal_tag = []
     lang_en = {"biome.karstscape.tower_karst": "Tower Karst"}
     lang_zh = {"biome.karstscape.tower_karst": "峰林"}
+
+    # classic: the vanilla default world, unchanged (comparison and benchmarks)
+    files[OUT_WG / "world_preset" / "classic.json"] = dumps(load(VWG / "world_preset" / "normal.json"))
+    normal_tag.append(f"{NS}:classic")
+    lang_en[f"generator.{NS}.classic"] = params["world"]["classic_en"]
+    lang_zh[f"generator.{NS}.classic"] = params["world"]["classic_zh"]
+
     for preset, cfg in presets.items():
         box = preset_box(cfg)
         edge = float(cfg["edge"])
@@ -477,25 +549,33 @@ def build(params: dict) -> dict[Path, str]:
         towers = {"type": f"{NS}:tower_field", "mask": f"{NS}:{preset}/tower_mask"}
         towers.update(params["towers"])
         files[dfdir / "towers.json"] = dumps(towers)
+        counts: dict[str, int] = {}
         for d in deps:
             rel = d.split(":", 1)[1]  # overworld/...
             src = rewrite_refs(load(VWG / "density_function" / f"{rel}.json"), mapping)
+            src = retarget_heights(src, counts)
             if rel == "overworld/final_density":
                 src = add_towers(src, f"{NS}:{preset}/towers")
             files[dfdir / f"{rel.split('/', 1)[1]}.json"] = dumps(src)
+        if counts != RETARGET_EXPECTED:
+            raise SystemExit(f"unexpected vanilla height constants {counts}; update retarget_heights()")
 
         ns = load(VWG / "noise_settings" / "overworld.json")
         ns = rewrite_refs(ns, mapping)
+        ns["noise"] = {"height": int(WORLD["height"]), "min_y": int(WORLD["min_y"])}
         ns["material_rule"] = f"{NS}:overworld"  # vanilla overworld rule + karst surface first in tower_karst
         ns["spawn_target"] = spawn_target(ns["spawn_target"], box, preset, params["spawn"])
         files[OUT_WG / "noise_settings" / f"{preset}.json"] = dumps(ns)
 
         wp = load(VWG / "world_preset" / "normal.json")
         ow = wp["dimensions"]["minecraft:overworld"]
+        ow["type"] = f"{NS}:overworld"
         ow["generator"]["biome_source"] = {"type": "minecraft:multi_noise", "biomes": biome_entries(box)}
         ow["generator"]["settings"] = f"{NS}:{preset}"
-        files[OUT_WG / "world_preset" / f"{preset}.json"] = dumps(wp, compact=True)
+        files[preset_path(cfg, preset)] = dumps(wp, compact=True)
 
+        if cfg.get("world_preset"):
+            continue  # replaces a vanilla preset: already in the tag, keeps its vanilla name
         normal_tag.append(f"{NS}:{preset}")
         lang_en[f"generator.{NS}.{preset}"] = cfg["display_en"]
         lang_zh[f"generator.{NS}.{preset}"] = cfg["display_zh"]
@@ -512,8 +592,16 @@ def build(params: dict) -> dict[Path, str]:
     return files
 
 
+def preset_path(cfg: dict, preset: str) -> Path:
+    """World preset file of a preset: its own id, or a vanilla id it replaces (world_preset = "minecraft:x")."""
+    if cfg.get("world_preset"):
+        ns, path = cfg["world_preset"].split(":", 1)
+        return RES / "data" / ns / "worldgen" / "world_preset" / f"{path}.json"
+    return OUT_WG / "world_preset" / f"{preset}.json"
+
+
 def generated_roots() -> list[Path]:
-    return [OUT_WG]
+    return [RES / "data", RES / "assets" / NS / "lang"]
 
 
 def main() -> int:
@@ -527,7 +615,7 @@ def main() -> int:
     params = tomllib.loads(PARAMS.read_text(encoding="utf-8"))
     files = build(params)
 
-    # stale generated files (e.g. a removed preset) inside the fully generated folder
+    # stale generated files (e.g. a removed preset) inside the fully generated folders
     existing = {p for root in generated_roots() if root.is_dir() for p in root.rglob("*.json")}
     stale = sorted(existing - set(files))
 
@@ -549,8 +637,8 @@ def main() -> int:
         if not p.is_file() or p.read_text(encoding="utf-8") != text:
             p.write_text(text, encoding="utf-8", newline="\n")
             changed += 1
-    for preset in params["presets"]:
-        wp = OUT_WG / "world_preset" / f"{preset}.json"
+    for preset, cfg in params["presets"].items():
+        wp = preset_path(cfg, preset)
         n = len(json.loads(wp.read_text(encoding="utf-8"))["dimensions"]["minecraft:overworld"]
                 ["generator"]["biome_source"]["biomes"])
         print(f"{preset}: {n} biome entries, world_preset {wp.stat().st_size // 1024} KiB")

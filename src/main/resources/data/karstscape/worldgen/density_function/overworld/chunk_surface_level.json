@@ -2,5 +2,5 @@
   "type": "minecraft:interpolated",
   "cell_size_xz": 16,
   "cell_size_y": 1,
-  "input": "karstscape:karstscape/preliminary_surface_level"
+  "input": "karstscape:overworld/preliminary_surface_level"
 }

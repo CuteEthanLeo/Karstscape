@@ -2,7 +2,7 @@
   "type": "minecraft:cache",
   "input": {
     "type": "minecraft:mul",
-    "left": "karstscape:karstscape/mask",
+    "left": "karstscape:overworld/mask",
     "right": {
       "type": "minecraft:clamp",
       "input": {

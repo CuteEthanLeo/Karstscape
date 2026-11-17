@@ -10,15 +10,28 @@
 # (temperature, humidity = router "vegetation", continentalness = "continents", erosion, weirdness = "ridges").
 # A box bound at -1.0 / 1.0 means "open on that side" (extended to the climate limit ±2, no edge ramp).
 
+# ------------------------------------------------------------------ world --
+# karstscape:overworld dimension type, used by the default world (presets.overworld) and karst_only.
+# karstscape:classic is the unchanged vanilla default world (comparison, benchmarks).
+[world]
+min_y = -64                # multiple of 16; kept vanilla so ores, deepslate, caves and ancient cities are unchanged
+height = 512               # multiple of 16 -> build limit y 447 (vanilla 384 -> y 319)
+cloud_height = 192.33      # vanilla
+# depth = (depth_zero_y - y) / depth_blocks + offset; the surface is where depth = 0 (vanilla 128 / 128)
+depth_zero_y = 128
+depth_blocks = 128
+top_slide = [240, 256]     # terrain fades to air between these y (vanilla 240..256)
+classic_en = "Classic (vanilla)"
+classic_zh = "原版地形"
+
 # ---------------------------------------------------------------- regions --
 # The biome karstscape:tower_karst occupies exactly this box. The terrain mask is 1 inside the box minus
 # `edge` on each closed side and ramps linearly to 0 at the box boundary, so the karst terrain fades out
 # while still inside the karst biome (no towers in neighbouring biomes).
 
-[presets.karstscape]
-# normal Overworld with karst regions (target: 5–10 % of land)
-display_en = "Karstscape"
-display_zh = "喀斯特峰林"
+[presets.overworld]
+# the default world type (replaces minecraft:normal): normal Overworld with karst regions (target: 5–10 % of land)
+world_preset = "minecraft:normal"
 # Tuned 2026-11-16 with `headless_test.py --profile tune --seed=…` (24 km squares, 3 seeds):
 # 8.2–9.4 % of land, 9–14 regions >= 1 km2 each, largest 2.7–4.8 km2.
 # Not constrained on humidity: vegetation is the highest-frequency climate noise and splits regions

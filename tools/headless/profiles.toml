@@ -5,15 +5,17 @@
 # (each must print a line matching `expect` within `timeout` seconds), then sends `stop`.
 #
 #   seed        level-seed
-#   level_type  world preset id (written escaped as minecraft\:normal)
+#   level_type  world preset id (written escaped as minecraft\:normal). With Karstscape installed,
+#               minecraft:normal is the Karstscape world; karstscape:classic is the unchanged vanilla one.
 #   level_name  world folder inside run-headless/ (one per profile so presets never mix)
 #   baseline    name of tools/headless/baselines/<name>.warn.txt
 #   collect     glob patterns (relative to run-headless/) copied into the result folder;
 #               with --repeat N they are also compared across runs (determinism check)
 
 [vanilla]
+# the unchanged vanilla world (karstscape:classic): mod loads, vanilla generation untouched
 seed = "20260915"
-level_type = "minecraft:normal"
+level_type = "karstscape:classic"
 level_name = "ks_vanilla"
 baseline = "vanilla"
 collect = []
@@ -24,35 +26,46 @@ expect = 'Seed: \[{seed}\]'
 timeout = 60
 
 [[vanilla.commands]]
+send = "karstscape info"
+expect = 'Karstscape info: settings minecraft:overworld, dimension_type minecraft:overworld, y -64\.\.319'
+timeout = 60
+
+[[vanilla.commands]]
 send = "save-all flush"
 expect = 'Saved the game'
 timeout = 300
 
-[karstscape]
+[default]
+# the default world type (minecraft:normal, replaced by Karstscape)
 seed = "20260915"
-level_type = "karstscape:karstscape"
-level_name = "ks_karstscape"
+level_type = "minecraft:normal"
+level_name = "ks_default"
 baseline = "vanilla"
 collect = ["karstscape_export/**/*.json", "karstscape_export/**/*.png"]
 
-[[karstscape.commands]]
+[[default.commands]]
 send = "seed"
 expect = 'Seed: \[{seed}\]'
 timeout = 60
 
-[[karstscape.commands]]
+[[default.commands]]
+send = "karstscape info"
+expect = 'Karstscape info: settings karstscape:overworld, dimension_type karstscape:overworld, y -64\.\.447'
+timeout = 60
+
+[[default.commands]]
 send = "locate biome karstscape:tower_karst"
 expect = 'The nearest karstscape:tower_karst is at|Could not find a biome'
 timeout = 300
 
 # large area, coarse: karst share of land
-[[karstscape.commands]]
+[[default.commands]]
 send = "karstscape export 12288 0 0 64"
 expect = 'Karstscape export (done: \S*_r12288_s64\b|failed)'
 timeout = 900
 
 # medium area around spawn: shape of regions and edges
-[[karstscape.commands]]
+[[default.commands]]
 send = "karstscape export 3072 0 0 8"
 expect = 'Karstscape export (done: \S*_r3072_s8\b|failed)'
 timeout = 900
@@ -76,7 +89,7 @@ timeout = 900
 
 [tune]
 seed = "20260915"
-level_type = "karstscape:karstscape"
+level_type = "minecraft:normal"
 level_name = "ks_tune"
 baseline = "vanilla"
 collect = []
@@ -111,7 +124,7 @@ timeout = 300
 
 [bench_vanilla]
 seed = "20260915"
-level_type = "minecraft:normal"
+level_type = "karstscape:classic"
 level_name = "ks_bench_vanilla"
 baseline = "vanilla"
 collect = []
@@ -134,9 +147,9 @@ expect = 'Karstscape bench done'
 timeout = 1800
 
 [find]
-# Karstscape preset: nearest karst core from spawn + aerial viewpoint (use with --seed)
+# default world: nearest karst core from spawn + aerial viewpoint (use with --seed)
 seed = "20260915"
-level_type = "karstscape:karstscape"
+level_type = "minecraft:normal"
 level_name = "ks_find"
 baseline = "vanilla"
 collect = []
@@ -146,7 +159,7 @@ send = "karstscape find"
 expect = 'Karstscape find'
 timeout = 600
 
-[[karstscape.commands]]
+[[default.commands]]
 send = "karstscape spawn"
 expect = 'Karstscape spawn: (OK|BAD)'
 timeout = 300

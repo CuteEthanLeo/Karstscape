@@ -92,6 +92,7 @@ public final class TerrainExport {
 				: generator.getClass().getSimpleName();
 		DensityFunction mask = findMask(settingsId);
 		int seaLevel = generator.getSeaLevel();
+		int minY = level.getMinY(), maxY = level.getMaxY();
 		Predicate<BlockState> notAir = Heightmap.Types.WORLD_SURFACE_WG.isOpaque();
 		Predicate<BlockState> solid = Heightmap.Types.OCEAN_FLOOR_WG.isOpaque();
 
@@ -115,8 +116,8 @@ public final class TerrainExport {
 					int x = x0 + ix * step;
 					int z = z0 + iz * step;
 					NoiseColumn column = generator.getBaseColumn(x, z, level, randomState);
-					int top = topY(column, notAir);
-					int ground = topY(column, solid);
+					int top = topY(column, notAir, minY, maxY);
+					int ground = topY(column, solid, minY, maxY);
 					surface[i] = top;
 					floor[i] = ground;
 					int gx = generator.getBaseHeight(x + 1, z, Heightmap.Types.OCEAN_FLOOR_WG, level, randomState) - 1;
@@ -191,13 +192,14 @@ public final class TerrainExport {
 		return ref.map(Holder::value).orElse(null);
 	}
 
-	private static int topY(NoiseColumn column, Predicate<BlockState> test) {
-		for (int y = 400; y >= -128; y--) {
+	/** Highest y in [minY, maxY] whose block passes the test, or minY - 1. */
+	private static int topY(NoiseColumn column, Predicate<BlockState> test, int minY, int maxY) {
+		for (int y = maxY; y >= minY; y--) {
 			if (test.test(column.getBlock(y))) {
 				return y;
 			}
 		}
-		return -129;
+		return minY - 1;
 	}
 
 	private record Grid(int n, int step, int x0, int z0, int seaLevel, int[] surface, int[] floor, float[] slope,

@@ -229,7 +229,7 @@ public final class WorldChecks {
 							   java.util.Map<String, Integer> tops, java.util.Map<String, Integer> plants) {
 		BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
 		if (t >= TOWER_Y) tops.merge(name(chunk.getBlockState(p.set(lx, t, lz))), 1, Integer::sum);
-		for (int y = Math.min(t + 40, 300); y > 60; y--) {
+		for (int y = Math.min(t + 40, chunk.getMaxY()); y > 60; y--) {
 			BlockState s = chunk.getBlockState(p.set(lx, y, lz));
 			if (s.isAir()) continue;
 			if (!terrain(s)) {

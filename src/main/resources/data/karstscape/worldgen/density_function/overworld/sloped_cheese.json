@@ -10,12 +10,12 @@
           "type": "minecraft:mul",
           "left": {
             "type": "minecraft:add",
-            "left": "karstscape:karstscape/depth",
+            "left": "karstscape:overworld/depth",
             "right": {
               "type": "minecraft:cache",
               "input": {
                 "type": "minecraft:mul",
-                "left": "karstscape:karstscape/jaggedness",
+                "left": "karstscape:overworld/jaggedness",
                 "right": {
                   "type": "minecraft:half_negative",
                   "input": {
@@ -28,7 +28,7 @@
               }
             }
           },
-          "right": "karstscape:karstscape/factor"
+          "right": "karstscape:overworld/factor"
         }
       },
       "right": 4.0

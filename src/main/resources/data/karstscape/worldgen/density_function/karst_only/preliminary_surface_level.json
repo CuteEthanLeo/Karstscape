@@ -42,8 +42,8 @@
                       "axis": "y",
                       "from_coordinate": -64,
                       "from_value": 1.5,
-                      "to_coordinate": 320,
-                      "to_value": -1.5
+                      "to_coordinate": 448,
+                      "to_value": -2.5
                     },
                     "right": "karstscape:karst_only/offset"
                   },
@@ -81,7 +81,7 @@
       },
       "right": 128.0
     },
-    "max": 320.0,
+    "max": 448.0,
     "min": -40.0
   }
 }
